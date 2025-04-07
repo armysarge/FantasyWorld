@@ -1,6 +1,6 @@
-google-generativeai>=0.3.0
-pillow>=10.0.0
-colorama>=0.4.6
-python-telegram-bot>=20.0
-mimetypes-magic>=0.1.0
-matplotlib>=3.7.0
+google-genai
+pillow
+colorama
+python-telegram-bot
+mimetypes-magic
+matplotlib

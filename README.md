@@ -2,7 +2,7 @@
 
 An AI-powered fantasy world event generator that creates dynamic, evolving stories and worlds using Google's Gemini AI and optional Telegram integration.
 
-![Fantasy World Generator](progress.jpg)
+![Fantasy World Generator](image.webp)
 
 ## Features
 
@@ -15,7 +15,7 @@ An AI-powered fantasy world event generator that creates dynamic, evolving stori
 
 ## Requirements
 
-- Python 3.8+ 
+- Python 3.8+
 - Required packages: see `requirements.txt`
 - Optional: Google Gemini API key for AI-enhanced features
 - Optional: Telegram Bot Token for messaging integration
