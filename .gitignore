@@ -1,3 +1,5 @@
 *.json
 *.db
 .venv
+.gitignore
+__pycache__
