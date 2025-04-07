@@ -1,3 +1,4 @@
+google
 google-genai
 pillow
 colorama

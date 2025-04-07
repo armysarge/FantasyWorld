@@ -45,7 +45,7 @@ class AIFunctions:
         """Save binary data to a file."""
         try:
             with open(file_name, "wb") as f:
-                f.write(base64.b64decode(data))
+                f.write(data)
         except Exception as e:
             self.debug_print(f"Error saving binary file: {e}")
             if self.debug:
@@ -277,7 +277,6 @@ class AIFunctions:
                 saved = False
 
                 try:
-                    # Stream the response to handle image data
                     for chunk in self.gemini_client.models.generate_content_stream(
                         model=model,
                         contents=contents,
@@ -285,10 +284,8 @@ class AIFunctions:
                     ):
                         if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
                             continue
-
-                        part = chunk.candidates[0].content.parts[0]
-                        if hasattr(part, 'inline_data') and part.inline_data:
-                            inline_data = part.inline_data
+                        if chunk.candidates[0].content.parts[0].inline_data:
+                            inline_data = chunk.candidates[0].content.parts[0].inline_data
                             file_extension = mimetypes.guess_extension(inline_data.mime_type) or ".png"
 
                             # Use the image_path with proper extension
@@ -302,8 +299,8 @@ class AIFunctions:
                             self.debug_print(f"Saved image of mime type {inline_data.mime_type} to: {final_image_path}")
                             # Return the path with proper extension
                             return final_image_path
-                        elif hasattr(part, 'text') and part.text:
-                            self.debug_print(f"Received text: {part.text}")
+                        else:
+                            self.debug_print(f"Received text: { chunk.candidates[0].content.parts[0].text}")
 
                     if not saved:
                         self.debug_print("Stream completed but no image data received from Gemini")
