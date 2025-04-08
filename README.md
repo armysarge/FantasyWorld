@@ -1,3 +1,16 @@
+[![madewithlove](https://img.shields.io/badge/made_with-%E2%9D%A4-red?style=for-the-badge&labelColor=orange)](https://github.com/armysarge/Telegram-Subscription-Bot)
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-brightgreen?logo=buymeacoffee)](https://www.buymeacoffee.com/armysarge)
+
+[![SQLLite](https://img.shields.io/badge/SQLite-3.8%2B-blue.svg)](https://www.sqlite.org/index.html)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-API-blue.svg)](https://developers.google.com/gemini)
+[![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-5.0-blue.svg)](https://core.telegram.org/bots/api)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![GitHub issues](https://img.shields.io/github/issues/armysarge/FantasyWorld)](https://github.com/armysarge/FantasyWorld/issues)
+
+
 # Fantasy World Event Generator
 
 An AI-powered fantasy world event generator that creates dynamic, evolving stories using Google's Gemini AI and optional Telegram integration.
