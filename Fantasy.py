@@ -1356,7 +1356,7 @@ def main():
             telegram_chat_id = None
 
     # Get debug mode setting
-    debug_mode = True
+    debug_mode = False
 
     # Initialize the generator with debug mode
     generator = FantasyWorldEventGenerator(world_name, api_key, telegram_token, telegram_chat_id, debug_mode)
@@ -1460,65 +1460,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-class AIFunctions:
-    def __init__(self, api_key: Optional[str] = None, debug: bool = False):
-        self.api_key = api_key
-        self.debug = debug
-        self.gemini_available = False
-
-        if api_key:
-            try:
-                # Initialize Gemini API client
-                self.client = genai.Client(api_key=api_key)
-                self.gemini_available = True
-            except Exception as e:
-                print(f"Error initializing Gemini API: {e}")
-                self.gemini_available = False
-
-    def save_binary_file(self, file_name: str, data: bytes):
-        """Save binary data to a file."""
-        try:
-            with open(file_name, "wb") as f:
-                f.write(data)
-        except Exception as e:
-            print(f"Error saving image file: {e}")
-            return None
-        return file_name
-
-    def generate_event_image(self, description: str, event_count: int, images_dir: Path) -> Optional[str]:
-        """Generate an image for an event using Google Gemini."""
-        if not self.gemini_available:
-            return None
-
-        try:
-            model = "gemini-2.0-flash-exp-image-generation"
-            contents = [
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=description)],
-                ),
-            ]
-            generate_content_config = types.GenerateContentConfig(
-                response_modalities=["image", "text"],
-                response_mime_type="text/plain",
-            )
-
-            for chunk in self.client.models.generate_content_stream(
-                model=model,
-                contents=contents,
-                config=generate_content_config,
-            ):
-                if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
-                    continue
-                if chunk.candidates[0].content.parts[0].inline_data:
-                    inline_data = chunk.candidates[0].content.parts[0].inline_data
-                    file_extension = mimetypes.guess_extension(inline_data.mime_type)
-                    file_name = images_dir / f"event_{event_count}{file_extension}"
-                    return self.save_binary_file(str(file_name), inline_data.data)
-                else:
-                    print(chunk.text) if self.debug else None
-
-        except Exception as e:
-            print(f"Error generating image: {e}") if self.debug else None
-            return None
