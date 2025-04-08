@@ -60,7 +60,7 @@ Each event maintains its own private data, ensuring that buttons from previous e
 1. Clone this repository:
    ```
    git clone https://github.com/armysarge/FantasyWorld.git
-   cd fantasy-world-generator
+   cd FantasyWorld
    ```
 
 2. Install dependencies:
