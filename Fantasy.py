@@ -40,7 +40,7 @@ def save_last_world(world_name: str, api_key: str = "", telegram_token: str = ""
         with open("fantasy_world_settings.json", "w") as f:
             json.dump(data, f)
     except Exception as e:
-        print(f"Error saving settings: {e}")
+        self.debug_print(f"Error saving settings: {e}")
 
 def load_last_world() -> Tuple[Optional[str], Optional[str], Optional[str], Optional[int]]:
     """Load the name of the last world created and API key from a file.
@@ -55,7 +55,7 @@ def load_last_world() -> Tuple[Optional[str], Optional[str], Optional[str], Opti
                         data.get("telegram_token", ""),
                         data.get("telegram_chat_id"))
     except Exception as e:
-        print(f"Error loading settings: {e}")
+        self.debug_print(f"Error loading settings: {e}")
     return None, None, None, None
 
 def load_world_state(world_name: str) -> Optional[Dict[str, Any]]:
@@ -80,7 +80,7 @@ def load_world_state(world_name: str) -> Optional[Dict[str, Any]]:
             if result and result[0]:
                 return json.loads(result[0])
     except Exception as e:
-        print(f"Error loading world state: {e}")
+        self.debug_print(f"Error loading world state: {e}")
 
     return None
 
@@ -93,8 +93,6 @@ class FantasyWorldEventGenerator:
         # Initialize AI module with debug mode
         self.ai = AIFunctions(api_key, debug=debug_mode)
         self.gemini_available = self.ai.gemini_available
-
-        print(self.gemini_available )
 
         # Initialize Telegram module with debug mode
         self.telegram = TelegramFunctions(telegram_token, telegram_chat_id, debug=debug_mode)
@@ -142,6 +140,11 @@ class FantasyWorldEventGenerator:
 
         # Fill-in variables for event templates
         self.fill_ins = fill_ins
+
+    def debug_print(self, message: str) -> None:
+        """Print debug messages only if debug mode is enabled."""
+        if self.debug_mode:
+            print(message)
 
     def create_randomized_world_state(self) -> Dict[str, Any]:
         """Create a randomized initial world state for this fantasy world."""
@@ -537,7 +540,7 @@ class FantasyWorldEventGenerator:
             conn.close()
             print(f"Database initialized at {self.db_path}")
         except Exception as e:
-            print(f"Error initializing database: {e}")
+            self.debug_print(f"Error initializing database: {e}")
 
     def save_event_to_db(self, event_text: str, category: str, event_data: Dict):
         """Save event information to the database."""
@@ -559,7 +562,7 @@ class FantasyWorldEventGenerator:
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"Error saving event to database: {e}")
+            self.debug_print(f"Error saving event to database: {e}")
 
     def update_world_state(self):
         """Update world state in the database."""
@@ -578,7 +581,7 @@ class FantasyWorldEventGenerator:
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"Error updating world state: {e}")
+            self.debug_print(f"Error updating world state: {e}")
 
     def extract_event_data(self, event_text: str) -> Dict:
         """Extract structured data from an event text."""
@@ -626,7 +629,7 @@ class FantasyWorldEventGenerator:
 
             return [result[0] for result in results]
         except Exception as e:
-            print(f"Error retrieving recent events: {e}")
+            self.debug_print(f"Error retrieving recent events: {e}")
             return []
 
     def get_last_event_count(self) -> int:
@@ -644,7 +647,7 @@ class FantasyWorldEventGenerator:
                 return result[0]
             return 0
         except Exception as e:
-            print(f"Error retrieving last event count: {e}")
+            self.debug_print(f"Error retrieving last event count: {e}")
             return 0
 
     def process_and_enhance_event(self, event_text: str, category: str) -> Dict[str, Any]:
@@ -665,7 +668,7 @@ class FantasyWorldEventGenerator:
                 event_data.update(ai_details)
             elif isinstance(ai_details, list):
                 # Handle the case where ai_details is a list
-                print(f"Converting AI details from list format to dictionary. List length: {len(ai_details)}")
+                self.debug_print(f"Converting AI details from list format to dictionary. List length: {len(ai_details)}")
 
                 # If it's a list of dictionaries, merge them
                 ai_dict = {}
@@ -676,22 +679,22 @@ class FantasyWorldEventGenerator:
                         # If it's a list of key-value pairs
                         ai_dict[item[0]] = item[1]
                     else:
-                        print(f"Skipping list item of unexpected format: {type(item)}")
+                        self.debug_print(f"Skipping list item of unexpected format: {type(item)}")
 
                 if ai_dict:
-                    print(f"Successfully converted list to dictionary with {len(ai_dict)} keys")
+                    self.debug_print(f"Successfully converted list to dictionary with {len(ai_dict)} keys")
                     event_data.update(ai_dict)
                 else:
-                    print("Could not convert AI details list to usable dictionary format")
+                    self.debug_print("Could not convert AI details list to usable dictionary format")
             else:
-                print(f"Warning: AI details not in expected format. Type: {type(ai_details)}")
+                self.debug_print(f"Warning: AI details not in expected format. Type: {type(ai_details)}")
 
         # Generate an image if we have a visual description
         if 'visual_description' in event_data and event_data['visual_description']:
             image_path = self.ai.generate_event_image(event_data['visual_description'], self.event_count, self.images_dir)
             if image_path:
                 event_data['image_path'] = image_path
-                print(f"Image saved to {image_path}")
+                self.debug_print(f"Image saved to {image_path}")
 
         # Create a news-style summary of the event
         news_summary = self.ai.summarize_event_for_telegram(event_text, category, self.world_state, self.world_name)
@@ -735,7 +738,7 @@ class FantasyWorldEventGenerator:
                     telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
             else:
                 # If news_summary isn't a dictionary, use the event text directly
-                print(f"Warning: News summary not in expected format. Response type: {type(news_summary)}")
+                self.debug_print(f"Warning: News summary not in expected format. Response type: {type(news_summary)}")
                 telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
 
             # Create admin details dictionary
@@ -749,7 +752,7 @@ class FantasyWorldEventGenerator:
             # Send with image if we have one
             image_path = event_data.get('image_path')
             if self.telegram.send_message(telegram_message, image_path, admin_details):
-                print("Event sent to Telegram!")
+                self.debug_print("Event sent to Telegram!")
 
         return event_data
 
@@ -1285,7 +1288,7 @@ class FantasyWorldEventGenerator:
                 for category, count in category_counts:
                     print(f"  {category}: {count}")
             except Exception as e:
-                print(f"Error getting category stats: {e}")
+                self.debug_print(f"Error getting category stats: {e}")
 
         # Most active locations
         if self.world_state['location_status']:

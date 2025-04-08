@@ -86,6 +86,12 @@ You can customize the generator by:
 - `fantasy_events_data.py` - Event templates and world data
 - `requirements.txt` - Required Python dependencies
 
+## Console Example
+![Fantasy World Generator](example1.webp)
+
+## Telegram Example
+![Fantasy World Generator](example2.webp)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
