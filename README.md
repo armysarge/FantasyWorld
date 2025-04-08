@@ -1,17 +1,39 @@
 # Fantasy World Event Generator
 
-An AI-powered fantasy world event generator that creates dynamic, evolving stories and worlds using Google's Gemini AI and optional Telegram integration.
+An AI-powered fantasy world event generator that creates dynamic, evolving stories using Google's Gemini AI and optional Telegram integration.
 
 ![Fantasy World Generator](image.webp)
+
 
 ## Features
 
 - **Procedural Fantasy Events**: Generate events in diverse categories like political, magical, social, economic, conflict, mystery, and more
 - **Dynamic World State**: World state evolves with each event, including seasons, weather, character relationships, and faction dynamics
-- **AI-Enhanced Storytelling**: Integration with Google's Gemini AI to add rich details, consequences, and connections between events
+- **AI-Enhanced Storytelling**: Integration with Google's Gemini AI to add rich details, consequences,  plot hooks, connections between events
 - **Event Images**: Generate fantasy illustrations for events (requires Google Gemini API key)
-- **Telegram Integration**: Broadcast events to Telegram chats with special admin-only details
+- **Telegram Integration**: Broadcast events (with images) to Telegram chats with special admin-only details
 - **Persistent Worlds**: Save and reload your fantasy worlds with persistent state
+
+## Telegram Integration
+
+The Fantasy World Generator includes full Telegram bot integration that allows you to:
+
+- Receive event notifications directly to your Telegram account
+- View images associated with events
+- Access hidden GM/DM information through interactive buttons
+- Explore connections to previous events
+- Discover adventure hooks and possible consequences
+
+### Telegram Button Functionality
+
+Each event sent to Telegram includes interactive buttons that provide additional GM/DM information:
+
+- 🔍 **Behind the Scenes**: Hidden details about the event
+- 🔗 **Connections**: How this event relates to previous events
+- ⚔️ **Adventure Hooks**: Potential adventure hooks related to this event
+- 🔮 **Consequences**: Possible outcomes of this event
+
+Each event maintains its own private data, ensuring that buttons from previous events will always display the correct information associated with that specific event.
 
 ## Requirements
 
@@ -47,12 +69,6 @@ When you start the program, you'll be prompted to:
 3. Optionally provide a Telegram Bot Token and Chat Id for sending events to Telegram
 
 Events will automatically be generated at random intervals (10-120 minutes by default), and you'll see them appear in the console with detailed information and story elements.
-
-### Using with Telegram
-
-If you provide a Telegram Bot Token, the generator will wait for you to send a message to your bot to establish a connection. Once connected, events will be sent to your Telegram chat/group as they occur.
-
-Group administrators will receive additional content including "behind the scenes" information, connections to previous events, adventure hooks, and possible consequences.
 
 ## Customization
 

@@ -68,7 +68,7 @@ class AIFunctions:
         if self.gemini_available:
             try:
                 prompt = f"""
-                Create a fantasy news-style summary for this event:
+                Create a fantasy news-style summary for this event, take inspiration from D&D lore and fantasy RPGs:
 
                 Generate two parts:
                 1. A headline (under 100 characters)
@@ -183,7 +183,7 @@ class AIFunctions:
             New event ({category}):
             {event_text}
 
-            Based on this new event and the history of {world_name}, provide the following information in JSON format:
+            Based on this new event and the history of {world_name}, provide the following information in JSON format, takeing inspiration from D&D lore and fantasy RPGs:
             {{
                 "consequences": "What might happen as a result of this event",
                 "connections": "How this event connects to previous events",
@@ -245,7 +245,7 @@ class AIFunctions:
 
                 # Enhanced prompt for better image quality
                 enhanced_prompt = f"""
-                Create a detailed fantasy illustration for this scene:
+                Create a detailed fantasy illustration for this scene, taking inspiration from D&D lore and fantasy RPGs:
                 {visual_description}
 
                 Make it high-quality landscape fantasy artwork with dramatic lighting and vivid colors.
