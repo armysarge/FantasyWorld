@@ -112,10 +112,13 @@ class AIFunctions:
                         if hasattr(candidate, 'content') and candidate.content:
                             for part in candidate.content.parts:
                                 if hasattr(part, 'text'):
-                                    response_text += part.text
-
-                # Parse the JSON response from the text
-                data = self.parse_json_response(response_text)[0]
+                                    response_text += part.text                # Parse the JSON response from the text
+                try:
+                    parse_result = self.parse_json_response(response_text)
+                    # Check if result is a list and access first element, otherwise use as is
+                    data = parse_result[0] if isinstance(parse_result, list) else parse_result
+                except json.JSONDecodeError:
+                    print(f"Error parsing JSON response: {response_text}")
 
                 # If we got valid JSON data
                 if data and "headline" in data and "description" in data:

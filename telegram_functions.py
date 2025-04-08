@@ -7,13 +7,14 @@ from typing import Dict, Optional, Set, Any
 
 class TelegramFunctions:
     """Handles all Telegram-related functionality for the Fantasy World Event Generator."""
-    def __init__(self, telegram_token: Optional[str] = None, telegram_chat_id: Optional[int] = None, debug: bool = False):
+    def __init__(self, telegram_token: Optional[str] = None, telegram_chat_id: Optional[int] = None, debug: bool = False, db_path: Optional[str] = None):
         """Initialize Telegram functionality with the provided token and chat ID."""
         self.telegram_token = telegram_token
         self.telegram_chat_id = telegram_chat_id
         self.telegram_admins = set()  # Store admin user IDs
         self.debug = debug
         self.event_details = {}  # Store event details by event ID for callbacks
+        self.db_path = db_path  # Path to the SQLite database
 
         # Initialize Telegram if token is provided
         if telegram_token:
@@ -151,8 +152,7 @@ class TelegramFunctions:
             # For testing, treat as admin
             self.telegram_admins = {self.telegram_chat_id}
             self.debug_print(f"Due to error, treating user as admin for testing")
-
-    def send_message(self, message: str, image_path: Optional[str] = None, admin_details: Optional[Dict] = None):
+    def send_message(self, message: str, image_path: Optional[str] = None, admin_details: Optional[Dict] = None, event_id: Optional[int] = None):
         """Send a message to Telegram, optionally with an image and admin details."""
         if not self.telegram_token or not self.telegram_chat_id:
             return False
@@ -166,23 +166,28 @@ class TelegramFunctions:
               # Create inline keyboard buttons for admin details if available
             inline_keyboard = None
             if admin_details and any(admin_details.values()):
-                # Generate a unique event ID using timestamp
-                event_id = str(int(time.time() * 1000))
-                self.debug_print(f"Creating admin detail buttons for event {event_id}")
+                # Use the provided event_id, which should be the database ID
+                if event_id is None:
+                    self.debug_print("Warning: No event_id provided for admin details buttons")
+                    return False
 
-                # Store admin details with this unique event ID
-                self.event_details[event_id] = admin_details
+                # Convert event_id to string for use in callback data
+                event_id_str = str(event_id)
+                self.debug_print(f"Creating admin detail buttons for event {event_id_str}")
+
+                # Store admin details with this event ID
+                self.event_details[event_id_str] = admin_details
 
                 # Create inline keyboard with buttons that include the event ID
                 inline_keyboard = {
                     "inline_keyboard": [
                         [
-                            {"text": "🔍 Behind the Scenes", "callback_data": f"behind_scenes:{event_id}"},
-                            {"text": "🔗 Connections", "callback_data": f"connections:{event_id}"}
+                            {"text": "🔍 Behind the Scenes", "callback_data": f"behind_scenes:{event_id_str}"},
+                            {"text": "🔗 Connections", "callback_data": f"connections:{event_id_str}"}
                         ],
                         [
-                            {"text": "⚔️ Adventure Hooks", "callback_data": f"adventure_hooks:{event_id}"},
-                            {"text": "🔮 Consequences", "callback_data": f"consequences:{event_id}"}
+                            {"text": "⚔️ Adventure Hooks", "callback_data": f"adventure_hooks:{event_id_str}"},
+                            {"text": "🔮 Consequences", "callback_data": f"consequences:{event_id_str}"}
                         ]
                     ]
                 }
@@ -227,7 +232,6 @@ class TelegramFunctions:
         except Exception as e:
             self.debug_print(f"Error sending Telegram message: {e}")
             return False
-
     def handle_callback_query(self, callback_query_data: str, callback_query_id: str):
         """Handle callback queries from Telegram inline buttons."""
         if not self.telegram_token or not self.telegram_chat_id:
@@ -249,12 +253,28 @@ class TelegramFunctions:
 
             action, event_id = callback_query_data.split(":", 1)
 
-            # Get the admin details for this specific event
-            if event_id not in self.event_details:
-                self.debug_print(f"No admin details found for event ID: {event_id}")
-                return False
+            # First try to get admin details from memory
+            admin_details = None
+            if event_id in self.event_details:
+                admin_details = self.event_details[event_id]
+            else:
+                # If not in memory, try to load from database
+                admin_details = self.load_event_details_from_db(event_id)
 
-            admin_details = self.event_details[event_id]
+            # If still no details found, return error
+            if not admin_details:
+                self.debug_print(f"No admin details found for event ID: {event_id} (not in memory or database)")
+
+                # Send a message indicating the details couldn't be found
+                response = requests.post(
+                    f"{base_url}/sendMessage",
+                    json={
+                        "chat_id": self.telegram_chat_id,
+                        "text": "Sorry, I couldn't find the details for this event. The data may have expired.",
+                        "parse_mode": "Markdown"
+                    }
+                )
+                return False
 
             # Determine which button was pressed and get the corresponding details
             message_text = ""
@@ -269,6 +289,7 @@ class TelegramFunctions:
             else:
                 self.debug_print(f"Unknown action in callback data: {action}")
                 return False
+
             self.debug_print(f"Sending callback response for: {action}, event: {event_id}")
 
             # Send the details as a new message
@@ -328,11 +349,59 @@ class TelegramFunctions:
                             # Handle the callback query
                             self.handle_callback_query(callback_data, callback_id)
 
-            except Exception as e:
-                self.debug_print(f"Error polling for callback queries: {e}")
+            except Exception as e:            self.debug_print(f"Error polling for callback queries: {e}")
 
             # Sleep briefly to avoid hammering the API
             time.sleep(1)
+    def load_event_details_from_db(self, event_id: str) -> Optional[Dict[str, str]]:
+        """Load event details from the database by event ID.
+
+        This is used to retrieve the data for telegram buttons when the application
+        has restarted and the in-memory cache is gone.
+        """
+        if not self.db_path:
+            self.debug_print("Database path not provided, cannot load event details")
+            return None
+
+        try:
+            import sqlite3
+
+            # Extract numeric ID from the event_id string
+            try:
+                db_event_id = int(event_id)
+            except ValueError:
+                self.debug_print(f"Invalid event ID format: {event_id}")
+                return None
+
+            # Connect to the database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Query the telegram_event_details table
+            cursor.execute('''
+            SELECT hidden_details, connections, plot_hooks, consequences
+            FROM event_details
+            WHERE event_id = ?
+            ''', (db_event_id,))
+
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                self.debug_print(f"Successfully loaded event details from database for event ID: {event_id}")
+                return {
+                    'hidden_details': result[0] or '',
+                    'connections': result[1] or '',
+                    'plot_hooks': result[2] or '',
+                    'consequences': result[3] or ''
+                }
+            else:
+                self.debug_print(f"No event details found in database for event ID: {event_id}")
+                return None
+
+        except Exception as e:
+            self.debug_print(f"Error loading event details from database: {e}")
+            return None
 
     def get_chat_id(self) -> Optional[int]:
         """Return the current chat ID."""

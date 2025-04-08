@@ -94,9 +94,6 @@ class FantasyWorldEventGenerator:
         self.ai = AIFunctions(api_key, debug=debug_mode)
         self.gemini_available = self.ai.gemini_available
 
-        # Initialize Telegram module with debug mode
-        self.telegram = TelegramFunctions(telegram_token, telegram_chat_id, debug=debug_mode)
-
         # Try to load existing world state first, create new only if none exists
         existing_state = load_world_state(world_name)
         if existing_state:
@@ -112,6 +109,9 @@ class FantasyWorldEventGenerator:
         # Initialize database for event history
         self.db_path = f"{world_name.lower().replace(' ', '_')}_events.db"
         self.initialize_database()
+
+        # Initialize Telegram module with debug mode
+        self.telegram = TelegramFunctions(telegram_token, telegram_chat_id, debug=debug_mode, db_path=self.db_path)
 
         # Load the latest event count from database
         self.event_count = self.get_last_event_count()
@@ -479,7 +479,6 @@ class FantasyWorldEventGenerator:
                 print('\a')  # ASCII bell character for Unix systems
         except:
             pass  # Silently fail if sound isn't available
-
     def initialize_database(self):
         """Initialize SQLite database for event history and world state tracking."""
         try:
@@ -509,30 +508,16 @@ class FantasyWorldEventGenerator:
             )
             ''')
 
-            # Create plots table for tracking ongoing storylines
+            # Create telegram_event_details table for storing data used by telegram buttons
             cursor.execute('''
-            CREATE TABLE IF NOT EXISTS plots (
+            CREATE TABLE IF NOT EXISTS event_details (
                 id INTEGER PRIMARY KEY,
-                plot_name TEXT,
-                description TEXT,
-                status TEXT,
-                involved_characters TEXT,
-                involved_locations TEXT,
-                involved_factions TEXT,
-                events_json TEXT
-            )
-            ''')
-
-            # Create character table
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS characters (
-                id INTEGER PRIMARY KEY,
-                name TEXT UNIQUE,
-                type TEXT,
-                status TEXT,
-                location TEXT,
-                affiliations TEXT,
-                history TEXT
+                event_id INTEGER,
+                hidden_details TEXT,
+                connections TEXT,
+                plot_hooks TEXT,
+                consequences TEXT,
+                FOREIGN KEY (event_id) REFERENCES events (id)
             )
             ''')
 
@@ -540,7 +525,7 @@ class FantasyWorldEventGenerator:
             conn.close()
             print(f"Database initialized at {self.db_path}")
         except Exception as e:
-            self.debug_print(f"Error initializing database: {e}")
+            self.debug_print(f"Error displaying event: {e}")
 
     def save_event_to_db(self, event_text: str, category: str, event_data: Dict):
         """Save event information to the database."""
@@ -558,6 +543,22 @@ class FantasyWorldEventGenerator:
             INSERT INTO events (timestamp, category, event_text, location, characters, factions, image_path)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (timestamp, category, event_text, location, characters, factions, image_path))
+
+            # Get the event ID that was just inserted
+            event_id = cursor.lastrowid
+
+            # Save telegram button data
+            hidden_details = event_data.get('hidden_details', '')
+            connections = event_data.get('connections', '')
+            plot_hooks = event_data.get('plot_hooks', '')
+            consequences = event_data.get('consequences', '')
+
+            # Only insert if we have at least one of these details
+            if hidden_details or connections or plot_hooks or consequences:
+                cursor.execute('''
+                INSERT INTO event_details (event_id, hidden_details, connections, plot_hooks, consequences)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (event_id, hidden_details, connections, plot_hooks, consequences))
 
             conn.commit()
             conn.close()
@@ -751,7 +752,7 @@ class FantasyWorldEventGenerator:
 
             # Send with image if we have one
             image_path = event_data.get('image_path')
-            if self.telegram.send_message(telegram_message, image_path, admin_details):
+            if self.telegram.send_message(telegram_message, image_path, admin_details, self.event_count):
                 self.debug_print("Event sent to Telegram!")
 
         return event_data
