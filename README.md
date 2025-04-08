@@ -26,6 +26,23 @@ An AI-powered fantasy world event generator that creates dynamic, evolving stori
 - **Event Images**: Generate fantasy illustrations for events (requires Google Gemini API key)
 - **Telegram Integration**: Broadcast events (with images) to Telegram chats with special admin-only details
 - **Persistent Worlds**: Save and reload your fantasy worlds with persistent state
+- **SQLite Database**: All world data, events, and relationships are stored in SQLite databases, making it easy to access and reuse the data in other projects
+
+## Data Persistence
+
+The Fantasy World Generator uses SQLite to store all world information, including:
+
+- Generated events with full details and relationships
+- Character information and their evolving relationships
+- Faction dynamics and territorial changes
+- Historical event chains and consequences
+- World state including weather, seasons, and political climate
+
+This database approach allows you to:
+- Access your fantasy world data from external applications
+- Create custom analytics or visualization tools
+- Develop complementary applications that build on your world's history
+- Export data for use in other game systems or storytelling platforms
 
 ## Telegram Integration
 
