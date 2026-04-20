@@ -1,6 +1,7 @@
 *.json
 *.db
 .venv
+venv
 .gitignore
 __pycache__
 *_world
