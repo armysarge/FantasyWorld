@@ -278,15 +278,22 @@ class TelegramFunctions:
                 return False
 
             # Determine which button was pressed and get the corresponding details
+            def _fmt(val, fallback):
+                if not val:
+                    return fallback
+                if isinstance(val, list):
+                    return '\n'.join(f'• {item}' for item in val if item)
+                return str(val)
+
             message_text = ""
             if action == "behind_scenes":
-                message_text = f"🔍 *Behind the Scenes*\n\n{admin_details.get('hidden_details', 'No details available.')}"
+                message_text = f"🔍 *Behind the Scenes*\n\n{_fmt(admin_details.get('hidden_details'), 'No details available.')}"
             elif action == "connections":
-                message_text = f"🔗 *Connections to Previous Events*\n\n{admin_details.get('connections', 'No connections found.')}"
+                message_text = f"🔗 *Connections to Previous Events*\n\n{_fmt(admin_details.get('connections'), 'No connections found.')}"
             elif action == "adventure_hooks":
-                message_text = f"⚔️ *Adventure Hooks*\n\n{admin_details.get('plot_hooks', 'No adventure hooks available.')}"
+                message_text = f"⚔️ *Adventure Hooks*\n\n{_fmt(admin_details.get('plot_hooks'), 'No adventure hooks available.')}"
             elif action == "consequences":
-                message_text = f"🔮 *Possible Consequences*\n\n{admin_details.get('consequences', 'No consequences predicted.')}"
+                message_text = f"🔮 *Possible Consequences*\n\n{_fmt(admin_details.get('consequences'), 'No consequences predicted.')}"
             else:
                 self.debug_print(f"Unknown action in callback data: {action}")
                 return False

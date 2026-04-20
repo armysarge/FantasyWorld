@@ -589,11 +589,15 @@ class FantasyWorldEventGenerator:
             # Get the event ID that was just inserted
             event_id = cursor.lastrowid
 
-            # Save telegram button data
-            hidden_details = event_data.get('hidden_details', '')
-            connections = event_data.get('connections', '')
-            plot_hooks = event_data.get('plot_hooks', '')
-            consequences = event_data.get('consequences', '')
+            # Save telegram button data — normalize lists to newline-separated strings
+            def _fmt(val):
+                if isinstance(val, list):
+                    return '\n'.join(f'• {item}' for item in val if item)
+                return val or ''
+            hidden_details = _fmt(event_data.get('hidden_details', ''))
+            connections = _fmt(event_data.get('connections', ''))
+            plot_hooks = _fmt(event_data.get('plot_hooks', ''))
+            consequences = _fmt(event_data.get('consequences', ''))
 
             # Only insert if we have at least one of these details
             if hidden_details or connections or plot_hooks or consequences:
@@ -1455,24 +1459,29 @@ def main():
                 blue = Fore.BLUE if has_color else ""
                 reset = Style.RESET_ALL if has_color else ""
 
+                def _fmt_detail(val):
+                    if isinstance(val, list):
+                        return '\n'.join(f'• {item}' for item in val if item)
+                    return str(val) if val else ''
+
                 if 'consequences' in event_data and event_data['consequences']:
                     print(f"{yellow}Possible Consequences:{reset}")
-                    print(event_data['consequences'])
+                    print(_fmt_detail(event_data['consequences']))
                     print()
 
                 if 'hidden_details' in event_data and event_data['hidden_details']:
                     print(f"{magenta}Behind the Scenes:{reset}")
-                    print(event_data['hidden_details'])
+                    print(_fmt_detail(event_data['hidden_details']))
                     print()
 
                 if 'connections' in event_data and event_data['connections']:
                     print(f"{cyan}Connections to Previous Events:{reset}")
-                    print(event_data['connections'])
+                    print(_fmt_detail(event_data['connections']))
                     print()
 
                 if 'plot_hooks' in event_data and event_data['plot_hooks']:
                     print(f"{green}Adventure Hooks:{reset}")
-                    print(event_data['plot_hooks'])
+                    print(_fmt_detail(event_data['plot_hooks']))
                     print()
 
                 # If we have an image, display it
