@@ -59,6 +59,9 @@ from fantasy_events_data import (
     season_emojis
 )
 
+# Resolve paths relative to this script's directory, not CWD
+_SCRIPT_DIR = Path(__file__).parent
+
 # Functions to save and load world settings
 def save_last_world(world_name: str, api_key: str = "", telegram_token: str = "",
                     telegram_chat_id: Optional[int] = None,
@@ -76,7 +79,7 @@ def save_last_world(world_name: str, api_key: str = "", telegram_token: str = ""
             "ai_base_url": ai_base_url,
             "ai_event_mode": ai_event_mode,
         }
-        with open("fantasy_world_settings.json", "w") as f:
+        with open(_SCRIPT_DIR / "fantasy_world_settings.json", "w") as f:
             json.dump(data, f)
     except Exception as e:
         print(f"Error saving settings: {e}")
@@ -92,8 +95,8 @@ def load_last_world() -> Dict[str, Any]:
         "ai_base_url": "", "ai_event_mode": "hybrid",
     }
     try:
-        if os.path.exists("fantasy_world_settings.json"):
-            with open("fantasy_world_settings.json", "r") as f:
+        if (_SCRIPT_DIR / "fantasy_world_settings.json").exists():
+            with open(_SCRIPT_DIR / "fantasy_world_settings.json", "r") as f:
                 data = json.load(f)
                 defaults.update(data)
     except Exception as e:
@@ -102,11 +105,11 @@ def load_last_world() -> Dict[str, Any]:
 
 def load_world_state(world_name: str) -> Optional[Dict[str, Any]]:
     """Load the saved world state for a specific world if it exists."""
-    db_path = f"{world_name.lower().replace(' ', '_')}_events.db"
+    db_path = _SCRIPT_DIR / f"{world_name.lower().replace(' ', '_')}_events.db"
 
     try:
-        if os.path.exists(db_path):
-            conn = sqlite3.connect(db_path)
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
             cursor = conn.cursor()
 
             # Get the latest saved world state
@@ -152,7 +155,7 @@ class FantasyWorldEventGenerator:
             self.world_state = self.create_randomized_world_state()
 
         # Initialize database for event history
-        self.db_path = f"{world_name.lower().replace(' ', '_')}_events.db"
+        self.db_path = str(_SCRIPT_DIR / f"{world_name.lower().replace(' ', '_')}_events.db")
         self.initialize_database()
 
         # Initialize Telegram module with debug mode
@@ -162,7 +165,7 @@ class FantasyWorldEventGenerator:
         self.event_count = self.get_last_event_count()
 
         # Create directories for saving generated content
-        self.world_dir = Path(f"{world_name.lower().replace(' ', '_')}_world")
+        self.world_dir = _SCRIPT_DIR / f"{world_name.lower().replace(' ', '_')}_world"
         self.images_dir = self.world_dir / "images"
         self.events_dir = self.world_dir / "events"
         self.maps_dir = self.world_dir / "maps"
