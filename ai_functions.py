@@ -324,12 +324,15 @@ class AIFunctions:
             New event ({category}):
             {event_text}
 
-            Based on this new event and the history of {world_name}, provide the following information in JSON format, taking inspiration from D&D lore and fantasy RPGs:
+            Based on this new event and the history of {world_name}, provide the following information in JSON format, taking inspiration from D&D lore and fantasy RPGs.
+            All fields must be consistent with each other — they all describe the SAME event from different angles:
             {{
-                "consequences": "What might happen as a result of this event",
+                "headline": "A short news-style headline for this event (under 100 characters)",
+                "description": "A news-style description of this event (100-200 words) that matches the headline",
+                "consequences": "What might happen as a result of this event (consistent with the headline and description)",
                 "connections": "How this event connects to previous events",
-                "hidden_details": "What might be happening behind the scenes",
-                "plot_hooks": "Adventure opportunities arising from this event",
+                "hidden_details": "What might be happening behind the scenes of this event",
+                "plot_hooks": "Adventure opportunities arising from this event (consistent with the headline and description)",
                 "visual_description": "A brief visual description of this event for illustration"
             }}
             """

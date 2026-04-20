@@ -703,7 +703,9 @@ class FantasyWorldEventGenerator:
         # Display the basic event first
         self.display_event((event_text, category))
 
-        # Get AI-enhanced details if available
+        # Get AI-enhanced details if available — this single call returns ALL content
+        # (headline, description, consequences, connections, hidden_details, plot_hooks,
+        # visual_description) so that every field is coherent with every other field.
         if self.gemini_available:
             recent_events = self.get_recent_events(5)
             ai_details = self.ai.get_ai_enhanced_event_details(event_text, category, self.world_state, self.world_name, recent_events)
@@ -721,7 +723,6 @@ class FantasyWorldEventGenerator:
                     if isinstance(item, dict):
                         ai_dict.update(item)
                     elif isinstance(item, (list, tuple)) and len(item) == 2:
-                        # If it's a list of key-value pairs
                         ai_dict[item[0]] = item[1]
                     else:
                         self.debug_print(f"Skipping list item of unexpected format: {type(item)}")
@@ -741,24 +742,65 @@ class FantasyWorldEventGenerator:
                 event_data['image_path'] = image_path
                 self.debug_print(f"Image saved to {image_path}")
 
-        # Create a news-style summary of the event
-        news_summary = self.ai.summarize_event_for_telegram(event_text, category, self.world_state, self.world_name)
-        if isinstance(news_summary, dict):
-            event_data['headline'] = news_summary.get('headline', '')
-            event_data['description'] = news_summary.get('description', '')
+        # Build the Telegram message from the AI-enhanced details (same call that produced
+        # the button content), so headline/description are always consistent with the buttons.
+        has_color = COLOR_SUPPORT
+        cyan = Fore.CYAN if has_color else ""
+        green = Fore.GREEN if has_color else ""
+        reset = Style.RESET_ALL if has_color else ""
 
-            # Display the news headline and description in the console right after the event
-            has_color = COLOR_SUPPORT
-            cyan = Fore.CYAN if has_color else ""
-            green = Fore.GREEN if has_color else ""
-            reset = Style.RESET_ALL if has_color else ""
+        ai_headline = event_data.get('headline', '')
+        ai_description = event_data.get('description', '')
+
+        if ai_headline and ai_description:
+            # Escape special characters for Telegram Markdown
+            def _esc(s):
+                return s.replace("*", "\\*").replace("[", "\\[").replace("`", "\\`").replace("_", "\\_")
+
+            emoji_map = {
+                "political": "🏛️", "magical": "✨", "social": "👥",
+                "economic": "💰", "natural": "🌲", "conflict": "⚔️",
+                "mystery": "🔮", "mundane": "🏘️", "religious": "⛪",
+                "astronomical": "🌠", "historical": "📜", "technological": "⚙️",
+                "artistic": "🎭", "culinary": "🍲", "criminal": "🦹",
+                "legendary": "🐉"
+            }
+            emoji = emoji_map.get(category, "📢")
+            safe_headline = _esc(ai_headline)
+            safe_desc = _esc(ai_description)
+            telegram_message = (
+                f"{emoji} *{safe_headline}*\n\n{safe_desc}"
+                f"\n\n\\_Year {self.world_state['time']['year']} in {self.world_name}\\_"
+            )
 
             print("\n" + "="*40)
             print(f"{cyan}EVENT SUMMARY:{reset}")
             print("-"*40)
-            print(f"{cyan}{news_summary.get('headline', '')}{reset}")
-            print(f"{green}{news_summary.get('description', '')}{reset}")
+            print(f"{cyan}{emoji} {ai_headline}{reset}")
+            print(f"{green}{ai_description}{reset}")
             print("="*40 + "\n")
+        else:
+            # AI didn't return headline/description — fall back to the separate summary call
+            news_summary = self.ai.summarize_event_for_telegram(event_text, category, self.world_state, self.world_name)
+            if isinstance(news_summary, dict):
+                event_data['headline'] = news_summary.get('headline', '')
+                event_data['description'] = news_summary.get('description', '')
+
+                print("\n" + "="*40)
+                print(f"{cyan}EVENT SUMMARY:{reset}")
+                print("-"*40)
+                print(f"{cyan}{news_summary.get('headline', '')}{reset}")
+                print(f"{green}{news_summary.get('description', '')}{reset}")
+                print("="*40 + "\n")
+
+                if 'formatted_message' in news_summary:
+                    telegram_message = news_summary['formatted_message']
+                elif 'headline' in news_summary and 'description' in news_summary:
+                    telegram_message = f"*{news_summary['headline']}*\n\n{news_summary['description']}"
+                else:
+                    telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
+            else:
+                telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
 
         # Save event to database — capture the real DB row ID
         db_event_id = self.save_event_to_db(event_text, category, event_data)
@@ -770,25 +812,7 @@ class FantasyWorldEventGenerator:
 
         # Send to Telegram if configured
         if self.telegram.get_chat_id():
-            # Check if we have a valid news_summary with the right format
-            telegram_message = ""
-
-            if isinstance(news_summary, dict):
-                # Try to get formatted_message if it exists
-                if 'formatted_message' in news_summary:
-                    telegram_message = news_summary['formatted_message']
-                # Otherwise create a message from headline and description
-                elif 'headline' in news_summary and 'description' in news_summary:
-                    telegram_message = f"*{news_summary['headline']}*\n\n{news_summary['description']}"
-                else:
-                    # Fallback to a basic message
-                    telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
-            else:
-                # If news_summary isn't a dictionary, use the event text directly
-                self.debug_print(f"Warning: News summary not in expected format. Response type: {type(news_summary)}")
-                telegram_message = f"*New Event in {self.world_name}*\n\n{event_text}"
-
-            # Create admin details dictionary
+            # Create admin details dictionary — drawn from the same AI call as the message
             admin_details = {
                 'hidden_details': event_data.get('hidden_details', ''),
                 'connections': event_data.get('connections', ''),
