@@ -1,7 +1,9 @@
 google
 google-genai
+openai
 pillow
 colorama
 python-telegram-bot
+requests
 mimetypes-magic
 matplotlib
