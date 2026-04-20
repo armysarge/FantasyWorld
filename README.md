@@ -32,10 +32,11 @@ An AI-powered fantasy world event generator that creates dynamic, evolving stori
 - **AI-Enhanced Storytelling**: Rich details, consequences, plot hooks, and connections between events
 - **Event Images**: Generate fantasy illustrations for events (Gemini provider)
 - **Telegram Integration**: Broadcast events (with images) to Telegram chats with interactive admin-only detail buttons
+- **Interactive Wait Menu**: During the countdown between events, press `M` to open a menu to change AI provider, model, event mode, wait interval, or view world details without restarting
 - **Persistent Worlds**: Save and reload your fantasy worlds with full state persistence
 - **Persistent Settings**: API keys, provider, model, event mode, and Telegram config are saved between sessions
 - **Extensive Template Library**: 500+ templates across weather, disasters, mysteries, politics, economics, social events, magic, character development, and more — all in a separate data file for easy customization
-- **SQLite Database**: All world data, events, and relationships are stored in SQLite databases for easy access and reuse
+- **SQLite Database**: All world data, events, relationships, characters, and locations are stored in dedicated SQLite tables for easy access and reuse
 
 ## AI Providers
 
@@ -50,17 +51,19 @@ An AI-powered fantasy world event generator that creates dynamic, evolving stori
 
 ## Data Persistence
 
-The Fantasy World Generator uses SQLite to store all world information, including:
+The Fantasy World Generator uses SQLite to store all world information across **dedicated tables**:
 
-- Generated events with full details and relationships
-- Character information and their evolving relationships
-- Faction dynamics and territorial changes
-- Historical event chains and consequences
-- World state including weather, seasons, and political climate
+| Table | Contents |
+|-------|----------|
+| `events` | Every generated event — timestamp, category, text, location, characters, factions, image path |
+| `event_details` | Per-event Telegram button data — consequences, hidden details, connections, adventure hooks |
+| `characters` | One row per unique character — type, last known location, last seen timestamp, total event count |
+| `locations` | One row per unique location — last event ID, last activity timestamp, event count, characters present |
+| `world_state` | Full world-state snapshots saved after every event (JSON) |
 
-This database approach allows you to:
+This structure allows you to:
 - Access your fantasy world data from external applications
-- Create custom analytics or visualization tools
+- Create custom analytics or visualisation tools
 - Develop complementary applications that build on your world's history
 - Export data for use in other game systems or storytelling platforms
 
@@ -116,7 +119,7 @@ Each event maintains its own private data, ensuring that buttons from previous e
 
 ## Usage
 
-When you start the program, you'll be prompted to:
+When you start the program for the **first time**, you'll be prompted to:
 
 1. Enter your fantasy world name
 2. Select your AI provider (Gemini, OpenAI, GitHub Copilot, or Custom)
@@ -125,18 +128,38 @@ When you start the program, you'll be prompted to:
 5. Choose an event mode (Template, Hybrid, or Full AI)
 6. Optionally provide a Telegram Bot Token and Chat ID for sending events to Telegram
 
-All settings are saved automatically and reused on the next run. You can update them at any time when prompted.
+All settings are saved automatically to `fantasy_world_settings.json` (next to the script) and reused on every subsequent run — the world and its database are always found regardless of where you launch the script from.
 
-Events will automatically be generated at random intervals (10-120 minutes by default), and you'll see them appear in the console with detailed information and story elements.
+Events are generated at random intervals (10–120 minutes by default).
+
+### Interactive Menu
+
+During the countdown between events, press **`M`** to open the interactive menu:
+
+| Key | Action |
+|-----|--------|
+| `1` | Trigger the next event immediately |
+| `2` | Change AI provider (re-initialises AI with new credentials) |
+| `3` | Change AI model |
+| `4` | Change event mode (template / hybrid / full_ai) |
+| `5` | Change min/max wait interval |
+| `6` | View world summary |
+| `7` | View active plots |
+| `8` | View character details |
+| `9` | View location details |
+| `0` | Exit |
+| Enter | Return to waiting |
+
+All provider, model, and mode changes are saved immediately and persist on next restart.
 
 ## Customization
 
 You can customize the generator by:
 
 1. Editing `fantasy_events_data.py` to modify event templates, characters, locations, weather patterns, and more
-2. Adjusting the event frequency in `Fantasy.py`
+2. Adjusting the event frequency via the interactive menu (option `5`) — no restart needed
 3. Adding your own event categories and templates to `fantasy_events_data.py`
-4. Switching between event modes (template / hybrid / full_ai) for different levels of AI creativity
+4. Switching between event modes (template / hybrid / full_ai) via the interactive menu (option `4`)
 
 ## Project Structure
 
