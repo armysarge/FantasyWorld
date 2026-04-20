@@ -19,7 +19,7 @@ from google.genai import types
 COLOR_SUPPORT = True
 
 # Import our modular components
-from ai_functions import AIFunctions, AI_SUPPORT
+from ai_functions import AIFunctions, AI_SUPPORT, AI_PROVIDERS
 from telegram_functions import TelegramFunctions
 
 colorama.init(autoreset=True)
@@ -28,35 +28,45 @@ colorama.init(autoreset=True)
 from fantasy_events_data import (event_categories, locations, factions, characters,magic_fields, resources, monsters, other_realms,inn_names, fill_ins)
 
 # Functions to save and load world settings
-def save_last_world(world_name: str, api_key: str = "", telegram_token: str = "", telegram_chat_id: Optional[int] = None):
+def save_last_world(world_name: str, api_key: str = "", telegram_token: str = "",
+                    telegram_chat_id: Optional[int] = None,
+                    ai_provider: str = "gemini", ai_model: str = "",
+                    ai_base_url: str = "", ai_event_mode: str = "hybrid"):
     """Save the name of the last world created and API key to a file."""
     try:
         data = {
             "world_name": world_name,
             "api_key": api_key,
             "telegram_token": telegram_token,
-            "telegram_chat_id": telegram_chat_id
+            "telegram_chat_id": telegram_chat_id,
+            "ai_provider": ai_provider,
+            "ai_model": ai_model,
+            "ai_base_url": ai_base_url,
+            "ai_event_mode": ai_event_mode,
         }
         with open("fantasy_world_settings.json", "w") as f:
             json.dump(data, f)
     except Exception as e:
-        self.debug_print(f"Error saving settings: {e}")
+        print(f"Error saving settings: {e}")
 
-def load_last_world() -> Tuple[Optional[str], Optional[str], Optional[str], Optional[int]]:
-    """Load the name of the last world created and API key from a file.
-    Returns a tuple of (world_name, api_key, telegram_token, telegram_chat_id)
+def load_last_world() -> Dict[str, Any]:
+    """Load saved world settings from file.
+    Returns a dict with keys: world_name, api_key, telegram_token, telegram_chat_id,
+    ai_provider, ai_model, ai_base_url, ai_event_mode.
     """
+    defaults = {
+        "world_name": None, "api_key": None, "telegram_token": None,
+        "telegram_chat_id": None, "ai_provider": "gemini", "ai_model": "",
+        "ai_base_url": "", "ai_event_mode": "hybrid",
+    }
     try:
         if os.path.exists("fantasy_world_settings.json"):
             with open("fantasy_world_settings.json", "r") as f:
                 data = json.load(f)
-                return (data.get("world_name"),
-                        data.get("api_key", ""),
-                        data.get("telegram_token", ""),
-                        data.get("telegram_chat_id"))
+                defaults.update(data)
     except Exception as e:
-        self.debug_print(f"Error loading settings: {e}")
-    return None, None, None, None
+        print(f"Error loading settings: {e}")
+    return defaults
 
 def load_world_state(world_name: str) -> Optional[Dict[str, Any]]:
     """Load the saved world state for a specific world if it exists."""
@@ -80,19 +90,22 @@ def load_world_state(world_name: str) -> Optional[Dict[str, Any]]:
             if result and result[0]:
                 return json.loads(result[0])
     except Exception as e:
-        self.debug_print(f"Error loading world state: {e}")
+        print(f"Error loading world state: {e}")
 
     return None
 
 class FantasyWorldEventGenerator:
-    def __init__(self, world_name: str, api_key: Optional[str] = None, telegram_token: Optional[str] = None, telegram_chat_id: Optional[int] = None, debug_mode: bool = False):
+    def __init__(self, world_name: str, api_key: Optional[str] = None, telegram_token: Optional[str] = None,
+                 telegram_chat_id: Optional[int] = None, debug_mode: bool = False,
+                 ai_provider: str = "gemini", ai_model: str = "", ai_base_url: str = ""):
         self.world_name = world_name
         self.event_count = 0
         self.debug_mode = debug_mode
+        self.ai_event_mode = "hybrid"  # default, can be overridden after init
 
-        # Initialize AI module with debug mode
-        self.ai = AIFunctions(api_key, debug=debug_mode)
-        self.gemini_available = self.ai.gemini_available
+        # Initialize AI module with debug mode and provider config
+        self.ai = AIFunctions(api_key, debug=debug_mode, provider=ai_provider, model=ai_model, base_url=ai_base_url)
+        self.gemini_available = self.ai.ai_available  # backwards compat
 
         # Try to load existing world state first, create new only if none exists
         existing_state = load_world_state(world_name)
@@ -1042,6 +1055,19 @@ class FantasyWorldEventGenerator:
             ])
 
             # Store this in world state relations
+            if self.world_state['relations'] and len(self.world_state['relations']) > 0:
+                relation_key = random.choice(list(self.world_state['relations'].keys()))
+            else:
+                # Pick two random factions and create a relation key
+                all_factions = list(set(
+                    [f for f_list in self.world_state.get('factions', {}).values() for f in f_list]
+                )) or ["Unknown Faction A", "Unknown Faction B"]
+                if len(all_factions) >= 2:
+                    f1, f2 = random.sample(all_factions, 2)
+                else:
+                    f1, f2 = all_factions[0], "Unknown Faction"
+                relation_key = f"{f1}_{f2}"
+
             if relation_key not in self.world_state['relations']:
                 self.world_state['relations'][relation_key] = {
                     'status': 'neutral',
@@ -1340,17 +1366,55 @@ def main():
 
     # Get the fantasy world name from the user or load the last world
     print("Welcome to the Fantasy World Event Generator!")
-    last_world, last_api_key, last_telegram_token, last_telegram_chat_id = load_last_world()
-    if last_world:
-        print(f"Last world used: {last_world}")
-        print(f"Automatically loading the last world: {last_world}")
-        world_name = last_world
-        api_key = last_api_key
-        telegram_token = last_telegram_token
-        telegram_chat_id = last_telegram_chat_id
+    settings = load_last_world()
+    if settings["world_name"]:
+        print(f"Last world used: {settings['world_name']}")
+        print(f"Automatically loading the last world: {settings['world_name']}")
+        world_name = settings["world_name"]
+        api_key = settings["api_key"]
+        telegram_token = settings["telegram_token"]
+        telegram_chat_id = settings["telegram_chat_id"]
+        ai_provider = settings["ai_provider"]
+        ai_model = settings["ai_model"]
+        ai_base_url = settings["ai_base_url"]
+        ai_event_mode = settings["ai_event_mode"]
     else:
         world_name = input("What is the name of your fantasy world? ")
-        api_key = input("\nEnter your Google Gemini API key (or leave blank to skip AI features): ").strip()
+
+        # AI provider selection
+        print("\n--- AI Provider Setup ---")
+        print("Available AI providers:")
+        for key, info in AI_PROVIDERS.items():
+            print(f"  {key}: {info['name']} - {info['description']}")
+        ai_provider = input(f"\nChoose AI provider [{'/'.join(AI_PROVIDERS.keys())}] (default: gemini): ").strip().lower()
+        if ai_provider not in AI_PROVIDERS:
+            ai_provider = "gemini"
+
+        # API key
+        provider_info = AI_PROVIDERS[ai_provider]
+        api_key = input(f"\nEnter your {provider_info['name']} API key (or leave blank to skip AI features): ").strip()
+
+        # Model selection
+        default_model = provider_info["default_model"]
+        ai_model = input(f"\nEnter model name (default: {default_model}): ").strip()
+        if not ai_model:
+            ai_model = default_model
+
+        # Base URL for custom providers
+        ai_base_url = ""
+        if ai_provider == "custom_openai":
+            ai_base_url = input("\nEnter custom OpenAI-compatible API base URL: ").strip()
+
+        # AI event generation mode
+        print("\n--- Event Generation Mode ---")
+        print("  template  - Classic template-based events only (no AI required)")
+        print("  hybrid    - Mix of template + AI-generated events (recommended)")
+        print("  full_ai   - Fully AI-generated events only (requires AI)")
+        ai_event_mode = input("Choose event mode [template/hybrid/full_ai] (default: hybrid): ").strip().lower()
+        if ai_event_mode not in ("template", "hybrid", "full_ai"):
+            ai_event_mode = "hybrid"
+
+        # Telegram setup
         telegram_token = input("\nEnter your Telegram bot token (or leave blank to skip Telegram notifications): ").strip()
         telegram_chat_id_input = input("\nEnter your Telegram chat ID: ").strip()
         try:
@@ -1363,16 +1427,22 @@ def main():
     debug_mode = False
 
     # Initialize the generator with debug mode
-    generator = FantasyWorldEventGenerator(world_name, api_key, telegram_token, telegram_chat_id, debug_mode)
+    generator = FantasyWorldEventGenerator(world_name, api_key, telegram_token, telegram_chat_id, debug_mode,
+                                           ai_provider=ai_provider, ai_model=ai_model, ai_base_url=ai_base_url)
+    generator.ai_event_mode = ai_event_mode
 
-    # Save the world name, API key, and telegram info
-    save_last_world(world_name, api_key, telegram_token, generator.telegram.get_chat_id())
+    # Save all settings
+    save_last_world(world_name, api_key, telegram_token, generator.telegram.get_chat_id(),
+                    ai_provider=ai_provider, ai_model=ai_model, ai_base_url=ai_base_url,
+                    ai_event_mode=ai_event_mode)
 
     # Set event frequency to between 10 and 120 minutes
     min_wait, max_wait = 600, 7200  # 10 minutes to 2 hours between events
 
     # Print world information
     print(f"\nWorld '{world_name}' created successfully!")
+    print(f"AI Provider: {AI_PROVIDERS.get(ai_provider, {}).get('name', ai_provider)}")
+    print(f"Event Mode: {ai_event_mode}")
     print(f"Event database: {generator.db_path}")
     print(f"World files directory: {generator.world_dir}")
 
@@ -1383,11 +1453,36 @@ def main():
 
     try:
         while True:
-            # Generate an event
-            event, category = generator.generate_event()
+            ai_event_used = False
 
-            # Process and enhance the event with AI and world state updates
-            event_data = generator.process_and_enhance_event(event, category)
+            # Try fully AI-generated event based on mode
+            if generator.ai_event_mode in ("full_ai", "hybrid") and generator.ai.ai_available:
+                # In hybrid mode, ~40% chance to use full AI event; in full_ai mode, always try
+                use_ai = (generator.ai_event_mode == "full_ai") or (random.random() < 0.4)
+                if use_ai:
+                    from fantasy_events_data import (event_categories, locations, factions,
+                                                     characters, monsters, magic_fields)
+                    recent_events = generator.get_recent_events(8)
+                    ai_event = generator.ai.generate_full_ai_event(
+                        generator.world_name, generator.world_state, recent_events,
+                        locations, factions, characters, monsters, magic_fields,
+                        list(event_categories.keys())
+                    )
+                    if ai_event:
+                        ai_event_used = True
+                        event = ai_event["event_text"]
+                        category = ai_event["category"]
+                        # Process the event but we already have AI details
+                        event_data = generator.process_and_enhance_event(event, category)
+                        # Merge the AI-generated details into event_data
+                        for key in ("consequences", "connections", "hidden_details", "plot_hooks", "visual_description"):
+                            if key in ai_event and ai_event[key]:
+                                event_data[key] = ai_event[key]
+
+            if not ai_event_used:
+                # Classic template-based event generation
+                event, category = generator.generate_event()
+                event_data = generator.process_and_enhance_event(event, category)
 
             # Display additional AI-generated content if available
             if generator.gemini_available and event_data:
