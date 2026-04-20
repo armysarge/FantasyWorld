@@ -604,8 +604,10 @@ class FantasyWorldEventGenerator:
 
             conn.commit()
             conn.close()
+            return event_id
         except Exception as e:
             self.debug_print(f"Error saving event to database: {e}")
+        return None
 
     def update_world_state(self):
         """Update world state in the database."""
@@ -758,8 +760,10 @@ class FantasyWorldEventGenerator:
             print(f"{green}{news_summary.get('description', '')}{reset}")
             print("="*40 + "\n")
 
-        # Save event to database
-        self.save_event_to_db(event_text, category, event_data)
+        # Save event to database — capture the real DB row ID
+        db_event_id = self.save_event_to_db(event_text, category, event_data)
+        if db_event_id is None:
+            db_event_id = self.event_count  # fallback if insert failed
 
         # Update world state based on event
         self.update_world_based_on_event(event_text, category, event_data)
@@ -792,9 +796,10 @@ class FantasyWorldEventGenerator:
                 'consequences': event_data.get('consequences', '')
             }
 
-            # Send with image if we have one
+            # Send with image if we have one — use the real DB ID so button callbacks
+            # always look up the correct event_details row
             image_path = event_data.get('image_path')
-            if self.telegram.send_message(telegram_message, image_path, admin_details, self.event_count):
+            if self.telegram.send_message(telegram_message, image_path, admin_details, db_event_id):
                 self.debug_print("Event sent to Telegram!")
 
         return event_data
