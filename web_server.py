@@ -38,7 +38,7 @@ def _get_latest_event() -> Optional[dict]:
 
         cur.execute("""
             SELECT e.id, e.timestamp, e.category, e.event_text, e.headline,
-                   e.location, e.characters, e.factions, e.image_path,
+                   e.description, e.location, e.characters, e.factions, e.image_path,
                    d.hidden_details, d.connections, d.plot_hooks, d.consequences
             FROM events e
             LEFT JOIN event_details d ON d.event_id = e.id
@@ -77,10 +77,12 @@ def _get_latest_event() -> Optional[dict]:
         if img and Path(img).exists():
             image_url = "/event_image/" + Path(img).name
 
-        # Build clean headline and body (strip the "[timestamp] Event #N (Category):" header line)
+        # Build clean headline and body
+        # Prefer the AI-generated description; fall back to stripping the event_text header
+        ai_description = (row["description"] or "").strip()
         raw_lines = [l for l in (row["event_text"] or "").split("\n") if l.strip()]
         body_lines = [l for l in raw_lines if not l.startswith("[")]
-        body_text = "\n".join(body_lines)
+        body_text = ai_description if ai_description else "\n".join(body_lines)
         db_headline = (row["headline"] or "").strip()
         if db_headline:
             display_headline = db_headline
@@ -121,7 +123,7 @@ def _get_recent_events(count: int = 10) -> List[dict]:
         cur = conn.cursor()
         cur.execute("""
             SELECT e.id, e.timestamp, e.category, e.event_text, e.headline,
-                   e.location, e.image_path,
+                   e.description, e.location, e.image_path,
                    d.hidden_details
             FROM events e
             LEFT JOIN event_details d ON d.event_id = e.id
@@ -195,7 +197,7 @@ def event_page(event_id: int):
         cur = conn.cursor()
         cur.execute("""
             SELECT e.id, e.timestamp, e.category, e.event_text, e.headline,
-                   e.location, e.characters, e.factions, e.image_path,
+                   e.description, e.location, e.characters, e.factions, e.image_path,
                    d.hidden_details, d.connections, d.plot_hooks, d.consequences
             FROM events e
             LEFT JOIN event_details d ON d.event_id = e.id
@@ -230,9 +232,10 @@ def event_page(event_id: int):
         if img and Path(img).exists():
             image_url = "/event_image/" + Path(img).name
 
+        ai_description = (row["description"] or "").strip()
         raw_lines = [l for l in (row["event_text"] or "").split("\n") if l.strip()]
         body_lines = [l for l in raw_lines if not l.startswith("[")]
-        body_text = "\n".join(body_lines)
+        body_text = ai_description if ai_description else "\n".join(body_lines)
         db_headline = (row["headline"] or "").strip()
         if db_headline:
             display_headline = db_headline

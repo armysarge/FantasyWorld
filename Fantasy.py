@@ -525,15 +525,20 @@ class FantasyWorldEventGenerator:
                 characters TEXT,
                 factions TEXT,
                 image_path TEXT,
-                headline TEXT DEFAULT ''
+                headline TEXT DEFAULT '',
+                description TEXT DEFAULT ''
             )
             ''')
 
-            # Migrate existing DBs that don't have the headline column yet
-            try:
-                cursor.execute("ALTER TABLE events ADD COLUMN headline TEXT DEFAULT ''")
-            except Exception:
-                pass  # Column already exists
+            # Migrate existing DBs that don't have the headline / description columns yet
+            for col_def in [
+                "ALTER TABLE events ADD COLUMN headline TEXT DEFAULT ''",
+                "ALTER TABLE events ADD COLUMN description TEXT DEFAULT ''",
+            ]:
+                try:
+                    cursor.execute(col_def)
+                except Exception:
+                    pass  # Column already exists
 
             # Create world state table
             cursor.execute('''
@@ -599,11 +604,19 @@ class FantasyWorldEventGenerator:
             factions = json.dumps(event_data.get('factions', []))
             image_path = event_data.get('image_path', '')
             headline = event_data.get('headline', '')
+            description = event_data.get('description', '')
+
+            # Strip the "[timestamp] Event #N (Category):" header line if present
+            lines = event_text.split('\n', 1)
+            if lines and lines[0].strip().startswith('[') and ':' in lines[0]:
+                clean_event_text = lines[1].strip() if len(lines) > 1 else ''
+            else:
+                clean_event_text = event_text
 
             cursor.execute('''
-            INSERT INTO events (timestamp, category, event_text, location, characters, factions, image_path, headline)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (timestamp, category, event_text, location, characters, factions, image_path, headline))
+            INSERT INTO events (timestamp, category, event_text, location, characters, factions, image_path, headline, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (timestamp, category, clean_event_text, location, characters, factions, image_path, headline, description))
 
             # Get the event ID that was just inserted
             event_id = cursor.lastrowid
