@@ -566,6 +566,30 @@ class FantasyWorldEventGenerator:
             )
             ''')
 
+            # Characters table — one row per unique character, updated on each appearance
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS characters (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                type TEXT,
+                last_location TEXT,
+                last_seen TEXT,
+                event_count INTEGER DEFAULT 0
+            )
+            ''')
+
+            # Locations table — one row per unique location, updated on each appearance
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS locations (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                last_event_id INTEGER,
+                last_seen TEXT,
+                event_count INTEGER DEFAULT 0,
+                characters_present TEXT
+            )
+            ''')
+
             conn.commit()
             conn.close()
             print(f"Database initialized at {self.db_path}")
@@ -634,6 +658,47 @@ class FantasyWorldEventGenerator:
             conn.close()
         except Exception as e:
             self.debug_print(f"Error updating world state: {e}")
+
+    def upsert_character_in_db(self, name: str, char_type: str, location: str, event_id: int):
+        """Insert or update a character row in the characters table."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute('''
+            INSERT INTO characters (name, type, last_location, last_seen, event_count)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(name) DO UPDATE SET
+                type         = excluded.type,
+                last_location = excluded.last_location,
+                last_seen    = excluded.last_seen,
+                event_count  = event_count + 1
+            ''', (name, char_type, location, now))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.debug_print(f"Error upserting character: {e}")
+
+    def upsert_location_in_db(self, name: str, event_id: int, characters: list):
+        """Insert or update a location row in the locations table."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            chars_json = json.dumps(characters)
+            cursor.execute('''
+            INSERT INTO locations (name, last_event_id, last_seen, event_count, characters_present)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                last_event_id      = excluded.last_event_id,
+                last_seen          = excluded.last_seen,
+                event_count        = event_count + 1,
+                characters_present = excluded.characters_present
+            ''', (name, event_id, now, chars_json))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            self.debug_print(f"Error upserting location: {e}")
 
     def extract_event_data(self, event_text: str) -> Dict:
         """Extract structured data from an event text."""
@@ -976,6 +1041,18 @@ class FantasyWorldEventGenerator:
         # Save the updated world state
         self.update_world_state()
 
+        # Persist characters and locations to their own DB tables
+        event_id = self.event_count
+        location = event_data.get('location', '')
+        char_names = []
+        for character in event_data.get('characters', []):
+            cname = character['name']
+            ctype = character['type']
+            char_names.append(cname)
+            self.upsert_character_in_db(cname, ctype, location, event_id)
+        if location:
+            self.upsert_location_in_db(location, event_id, char_names)
+
     def advance_season(self):
         """Advance to the next season and update weather accordingly."""
         seasons = ['spring', 'summer', 'autumn', 'winter']
@@ -1174,62 +1251,77 @@ class FantasyWorldEventGenerator:
 
     # Display helper methods
     def show_character_details(self):
-        """Display details about characters in the world."""
-        if not self.world_state['character_status']:
-            print("No character information available yet.")
-            return
+        """Display details about characters in the world (reads from DB)."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT name, type, last_location, last_seen, event_count FROM characters ORDER BY event_count DESC')
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception as e:
+            self.debug_print(f"Error reading characters from DB: {e}")
+            rows = []
+
+        if not rows:
+            # Fallback to world_state
+            if not self.world_state['character_status']:
+                print("No character information available yet.")
+                return
+            rows = [
+                (name, d['type'], d['location'], d['last_seen'], len(d['events']))
+                for name, d in sorted(
+                    self.world_state['character_status'].items(),
+                    key=lambda x: len(x[1]['events']), reverse=True
+                )
+            ]
 
         print("\n=== CHARACTERS IN THE WORLD ===\n")
-
-        # Sort characters by number of events they're involved in
-        sorted_chars = sorted(
-            self.world_state['character_status'].items(),
-            key=lambda x: len(x[1]['events']),
-            reverse=True
-        )
-
-        for char_name, char_data in sorted_chars:
-            events_count = len(char_data['events'])
-            print(f"{Fore.YELLOW}{char_name}{Style.RESET_ALL} ({char_data['type']})")
-            print(f"  Last seen: {char_data['location']} at {char_data['last_seen']}")
-            print(f"  Appeared in {events_count} event{'s' if events_count != 1 else ''}")
-            if events_count > 0:
-                print("  Recent events:")
-                for event in char_data['events'][-3:]:  # Show last 3 events
-                    print(f"    - Event #{event['event_id']} ({event['category']}): {event['summary'][:50]}...")
+        for name, ctype, location, last_seen, event_count in rows:
+            print(f"{Fore.YELLOW}{name}{Style.RESET_ALL} ({ctype})")
+            print(f"  Last seen: {location or 'unknown'} at {last_seen or 'unknown'}")
+            print(f"  Appeared in {event_count} event{'s' if event_count != 1 else ''}")
             print()
 
     def show_location_details(self):
-        """Display details about locations in the world."""
-        if not self.world_state['location_status']:
-            print("No location information available yet.")
-            return
+        """Display details about locations in the world (reads from DB)."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT name, last_event_id, last_seen, event_count, characters_present FROM locations ORDER BY event_count DESC')
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception as e:
+            self.debug_print(f"Error reading locations from DB: {e}")
+            rows = []
+
+        if not rows:
+            # Fallback to world_state
+            if not self.world_state['location_status']:
+                print("No location information available yet.")
+                return
+            rows = [
+                (name, None, None, len(d['events']), json.dumps(d['characters_present']))
+                for name, d in sorted(
+                    self.world_state['location_status'].items(),
+                    key=lambda x: len(x[1]['events']), reverse=True
+                )
+            ]
 
         print("\n=== LOCATIONS IN THE WORLD ===\n")
-
-        # Sort locations by number of events
-        sorted_locs = sorted(
-            self.world_state['location_status'].items(),
-            key=lambda x: len(x[1]['events']),
-            reverse=True
-        )
-
-        for loc_name, loc_data in sorted_locs:
-            events_count = len(loc_data['events'])
-            characters = loc_data['characters_present']
-
-            print(f"{Fore.GREEN}{loc_name}{Style.RESET_ALL}")
-            print(f"  {events_count} event{'s' if events_count != 1 else ''} occurred here")
-
+        for name, last_event_id, last_seen, event_count, chars_json in rows:
+            try:
+                characters = json.loads(chars_json) if chars_json else []
+            except Exception:
+                characters = []
+            print(f"{Fore.GREEN}{name}{Style.RESET_ALL}")
+            print(f"  {event_count} event{'s' if event_count != 1 else ''} occurred here")
+            if last_seen:
+                print(f"  Last activity: {last_seen}")
             if characters:
-                print(f"  Characters present: {', '.join(characters[:5])}")
+                display = characters[:5]
+                print(f"  Characters present: {', '.join(display)}")
                 if len(characters) > 5:
                     print(f"    ...and {len(characters) - 5} more")
-
-            if events_count > 0:
-                print("  Recent events:")
-                for event in loc_data['events'][-3:]:  # Show last 3 events
-                    print(f"    - Event #{event['event_id']} ({event['category']}): {event['summary'][:50]}...")
             print()
 
     def show_active_plots(self):
