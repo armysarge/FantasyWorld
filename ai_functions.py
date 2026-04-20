@@ -4,42 +4,201 @@ import random
 import traceback
 from pathlib import Path
 from typing import Dict, Optional, Any, List, Tuple
-from google import genai
-from google.genai import types
 from PIL import Image, ImageDraw, ImageFont
 import mimetypes
 import base64
 
-AI_SUPPORT = True
+# Try to import AI provider libraries
+GEMINI_SUPPORT = False
+OPENAI_SUPPORT = False
+
+try:
+    from google import genai
+    from google.genai import types
+    GEMINI_SUPPORT = True
+except ImportError:
+    pass
+
+try:
+    import openai
+    OPENAI_SUPPORT = True
+except ImportError:
+    pass
+
+AI_SUPPORT = GEMINI_SUPPORT or OPENAI_SUPPORT
+
+# Supported AI providers
+AI_PROVIDERS = {
+    "gemini": {
+        "name": "Google Gemini",
+        "description": "Google's Gemini AI (supports text + image generation)",
+        "requires": "google-genai",
+        "available": GEMINI_SUPPORT,
+        "default_model": "gemini-2.0-flash",
+    },
+    "openai": {
+        "name": "OpenAI",
+        "description": "OpenAI GPT models (text only)",
+        "requires": "openai",
+        "available": OPENAI_SUPPORT,
+        "default_model": "gpt-4o-mini",
+        "base_url": "https://api.openai.com/v1",
+    },
+    "github_copilot": {
+        "name": "GitHub Copilot (GitHub Models)",
+        "description": "GitHub Models API using your GitHub PAT (text only)",
+        "requires": "openai",
+        "available": OPENAI_SUPPORT,
+        "default_model": "gpt-4o",
+        "base_url": "https://models.inference.ai.azure.com",
+    },
+    "custom_openai": {
+        "name": "Custom OpenAI-Compatible",
+        "description": "Any OpenAI-compatible API (LM Studio, Ollama, etc.)",
+        "requires": "openai",
+        "available": OPENAI_SUPPORT,
+        "default_model": "gpt-4o-mini",
+        "base_url": None,  # User must provide
+    },
+}
+
 
 class AIFunctions:
-    """Handles all AI-related functionality for the Fantasy World Event Generator."""
+    """Handles all AI-related functionality for the Fantasy World Event Generator.
 
-    def __init__(self, api_key: Optional[str] = None, debug: bool = False):
-        """Initialize AI functionality with the provided API key."""
+    Supports multiple AI providers:
+    - Google Gemini (default)
+    - OpenAI
+    - GitHub Copilot (via GitHub Models API)
+    - Any OpenAI-compatible API (local models, Azure, etc.)
+    """
+
+    def __init__(self, api_key: Optional[str] = None, debug: bool = False,
+                 provider: str = "gemini", model: Optional[str] = None,
+                 base_url: Optional[str] = None):
+        """Initialize AI functionality with the provided API key and provider.
+
+        Args:
+            api_key: API key for the chosen provider.
+            debug: Enable debug output.
+            provider: AI provider to use ("gemini", "openai", "github_copilot", "custom_openai").
+            model: Model name to use (defaults to provider's default).
+            base_url: Custom base URL for OpenAI-compatible APIs.
+        """
         self.api_key = api_key
+        self.debug = debug
+        self.provider = provider
+        self.gemini_available = False
+        self.ai_available = False
+
+        # Provider-specific clients
         self.gemini_client = None
         self.gemini_model = None
-        self.debug = debug
+        self.openai_client = None
+        self.openai_model = None
 
-        # Initialize Gemini AI if API key is provided
-        if AI_SUPPORT and api_key:
-            try:
-                # Create the client using the API key
-                self.gemini_client = genai.Client(api_key=api_key)
-                # Initialize gemini model for regular text generation
-                self.gemini_model = "gemini-2.0-flash"
-                self.gemini_available = True
-                print("Google Gemini AI integration enabled!")
-            except Exception as e:
-                print(f"Error initializing Gemini AI: {e}")
-                self.gemini_available = False
+        if not api_key:
+            print("AI integration disabled - no API key provided.")
+            return
+
+        provider_info = AI_PROVIDERS.get(provider)
+        if not provider_info:
+            print(f"Unknown AI provider: {provider}. Available: {', '.join(AI_PROVIDERS.keys())}")
+            return
+
+        if not provider_info["available"]:
+            print(f"{provider_info['name']} support unavailable - install {provider_info['requires']}")
+            return
+
+        # Set the model
+        self.active_model = model or provider_info["default_model"]
+
+        # Initialize the chosen provider
+        if provider == "gemini":
+            self._init_gemini(api_key)
         else:
-            self.gemini_available = False
-            if not AI_SUPPORT:
-                print("Gemini AI support unavailable - required packages not found.")
-            elif not api_key:
-                print("Gemini AI integration disabled - no API key provided.")
+            # All other providers use OpenAI-compatible client
+            effective_base_url = base_url or provider_info.get("base_url")
+            self._init_openai(api_key, effective_base_url)
+
+    def _init_gemini(self, api_key: str):
+        """Initialize Google Gemini AI provider."""
+        try:
+            self.gemini_client = genai.Client(api_key=api_key)
+            self.gemini_model = self.active_model
+            self.gemini_available = True
+            self.ai_available = True
+            print(f"Google Gemini AI integration enabled! (model: {self.active_model})")
+        except Exception as e:
+            print(f"Error initializing Gemini AI: {e}")
+
+    def _init_openai(self, api_key: str, base_url: Optional[str]):
+        """Initialize OpenAI-compatible AI provider."""
+        try:
+            kwargs = {"api_key": api_key}
+            if base_url:
+                kwargs["base_url"] = base_url
+
+            self.openai_client = openai.OpenAI(**kwargs)
+            self.openai_model = self.active_model
+            self.ai_available = True
+            # Also set gemini_available for backward compatibility
+            self.gemini_available = True
+
+            provider_name = AI_PROVIDERS[self.provider]["name"]
+            print(f"{provider_name} AI integration enabled! (model: {self.active_model})")
+        except Exception as e:
+            print(f"Error initializing {self.provider} AI: {e}")
+
+    def _generate_text(self, prompt: str, json_mode: bool = False) -> str:
+        """Generate text using the active AI provider. Returns raw response text."""
+        if self.provider == "gemini" and self.gemini_client:
+            return self._generate_text_gemini(prompt, json_mode)
+        elif self.openai_client:
+            return self._generate_text_openai(prompt, json_mode)
+        return ""
+
+    def _generate_text_gemini(self, prompt: str, json_mode: bool = False) -> str:
+        """Generate text using Gemini."""
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)]
+            )
+        ]
+
+        config = {}
+        if json_mode:
+            config = types.GenerateContentConfig(response_mime_type="application/json")
+
+        response = self.gemini_client.models.generate_content(
+            model=self.gemini_model,
+            contents=contents,
+            config=config if config else None
+        )
+
+        response_text = ""
+        if hasattr(response, 'text'):
+            response_text = response.text
+        elif hasattr(response, 'candidates') and response.candidates:
+            for candidate in response.candidates:
+                if hasattr(candidate, 'content') and candidate.content:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text'):
+                            response_text += part.text
+        return response_text
+
+    def _generate_text_openai(self, prompt: str, json_mode: bool = False) -> str:
+        """Generate text using OpenAI-compatible API."""
+        kwargs = {
+            "model": self.openai_model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        response = self.openai_client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content or ""
 
     def save_binary_file(self, file_name, data):
         """Save binary data to a file."""
@@ -65,7 +224,7 @@ class AIFunctions:
             event_content = event_text
 
         # Use AI to create a summarized version if available
-        if self.gemini_available:
+        if self.ai_available:
             try:
                 prompt = f"""
                 Create a fantasy news-style summary for this event, take inspiration from D&D lore and fantasy RPGs:
@@ -88,31 +247,10 @@ class AIFunctions:
                 - {world_state['time']['weather'].capitalize()} weather
                 """
 
-                # Create the content for the request
-                contents = [
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=prompt)]
-                    )
-                ]
+                response_text = self._generate_text(prompt, json_mode=True)
 
-                # Use JSON-configured model
-                response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=contents,
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
-                )
-
-                # Get the text from the response
-                response_text = ""
-                if hasattr(response, 'text'):
-                    response_text = response.text
-                elif hasattr(response, 'candidates') and response.candidates:
-                    for candidate in response.candidates:
-                        if hasattr(candidate, 'content') and candidate.content:
-                            for part in candidate.content.parts:
-                                if hasattr(part, 'text'):
-                                    response_text += part.text                # Parse the JSON response from the text
+                # Parse the JSON response from the text
+                data = None
                 try:
                     parse_result = self.parse_json_response(response_text)
                     # Check if result is a list and access first element, otherwise use as is
@@ -160,17 +298,17 @@ class AIFunctions:
         }
 
     def get_ai_enhanced_event_details(self, event_text: str, category: str, world_state: Dict[str, Any], world_name: str, recent_events: List[str]) -> Dict[str, Any]:
-        """Use Gemini AI to enhance event details and create story continuity."""
-        if not self.gemini_available:
+        """Use AI to enhance event details and create story continuity."""
+        if not self.ai_available:
             return {}
 
         try:
             # Format recent events text
             recent_events_text = "\n".join(recent_events) if recent_events else "No previous events."
 
-            self.debug_print("Using Gemini AI to enhance event details...")
+            self.debug_print("Using AI to enhance event details...")
 
-            # Construct prompt for Gemini
+            # Construct prompt
             prompt = f"""
             You are the storyteller for a fantasy world named {world_name}.
 
@@ -186,7 +324,7 @@ class AIFunctions:
             New event ({category}):
             {event_text}
 
-            Based on this new event and the history of {world_name}, provide the following information in JSON format, takeing inspiration from D&D lore and fantasy RPGs:
+            Based on this new event and the history of {world_name}, provide the following information in JSON format, taking inspiration from D&D lore and fantasy RPGs:
             {{
                 "consequences": "What might happen as a result of this event",
                 "connections": "How this event connects to previous events",
@@ -196,33 +334,7 @@ class AIFunctions:
             }}
             """
 
-            # Create the content for the request
-            contents = [
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=prompt)]
-                )
-            ]
-
-            # Call Gemini API with the JSON-specific model
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=contents,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-
-            # Get the text from the response
-            response_text = ""
-            if hasattr(response, 'text'):
-                response_text = response.text
-            elif hasattr(response, 'candidates') and response.candidates:
-                for candidate in response.candidates:
-                    if hasattr(candidate, 'content') and candidate.content:
-                        for part in candidate.content.parts:
-                            if hasattr(part, 'text'):
-                                response_text += part.text
-
-            # Parse response
+            response_text = self._generate_text(prompt, json_mode=True)
             return self.parse_json_response(response_text)
 
         except Exception as e:
@@ -232,8 +344,9 @@ class AIFunctions:
             return {}
 
     def generate_event_image(self, visual_description: str, event_id: int, images_dir: Path) -> Optional[str]:
-        """Generate an image for the event using Gemini AI."""
-        if not self.gemini_available:
+        """Generate an image for the event using Gemini AI (only Gemini supports image generation)."""
+        if not self.gemini_client:
+            self.debug_print("Image generation requires Gemini provider. Skipping image generation.")
             return None
 
         try:
@@ -323,6 +436,117 @@ class AIFunctions:
 
         except Exception as e:
             self.debug_print(f"Error generating image: {e}")
+            if self.debug:
+                traceback.print_exc()
+            return None
+
+    def generate_full_ai_event(self, world_name: str, world_state: Dict[str, Any],
+                               recent_events: List[str], locations: List[str],
+                               factions: List[str], characters: Dict[str, List[str]],
+                               monsters: List[str], magic_fields: List[str],
+                               event_categories: List[str]) -> Optional[Dict[str, Any]]:
+        """Generate a completely AI-created event instead of using templates.
+
+        Returns a dict with keys: category, event_text, consequences, connections,
+        hidden_details, plot_hooks, visual_description.
+        Returns None if AI is not available or generation fails.
+        """
+        if not self.ai_available:
+            return None
+
+        try:
+            recent_events_text = "\n".join(recent_events[-8:]) if recent_events else "No previous events yet - this is the beginning of the world's story."
+
+            # Sample some world elements to give the AI context without overwhelming it
+            sample_locations = random.sample(locations, min(8, len(locations)))
+            sample_factions = random.sample(factions, min(6, len(factions)))
+            sample_monsters = random.sample(monsters, min(6, len(monsters)))
+            sample_magic = random.sample(magic_fields, min(5, len(magic_fields)))
+
+            # Get a few character names
+            sample_chars = []
+            for char_type, names in characters.items():
+                if names:
+                    sample_chars.append(f"{random.choice(names)} ({char_type})")
+                if len(sample_chars) >= 6:
+                    break
+
+            # Get active plots
+            active_plots_text = ""
+            if world_state.get('active_plots'):
+                plots = [f"- {p['name']}: {p['description']}" for p in world_state['active_plots'][:3]]
+                active_plots_text = "\nActive storylines:\n" + "\n".join(plots)
+
+            # Get notable faction relations
+            relations_text = ""
+            if world_state.get('relations'):
+                notable = [(k, v) for k, v in world_state['relations'].items() if v['status'] != 'neutral']
+                if notable:
+                    rels = [f"- {k.replace('_', ' and ')}: {v['status']}" for k, v in notable[:5]]
+                    relations_text = "\nNotable faction relations:\n" + "\n".join(rels)
+
+            prompt = f"""You are the master storyteller for the fantasy world of {world_name}.
+Your job is to create a single compelling, original event that advances the world's story.
+
+WORLD STATE:
+- Year: {world_state['time']['year']}
+- Season: {world_state['time']['season'].capitalize()}
+- Time of day: {world_state['time']['time_of_day'].capitalize()}
+- Weather: {world_state['time']['weather'].capitalize()}
+- World: {world_state.get('world_description', 'A mystical fantasy realm')}
+{active_plots_text}
+{relations_text}
+
+WORLD ELEMENTS (use these as context, not required to use all):
+Locations: {', '.join(sample_locations)}
+Factions: {', '.join(sample_factions)}
+Known characters: {', '.join(sample_chars)}
+Creature types: {', '.join(sample_monsters)}
+Magic disciplines: {', '.join(sample_magic)}
+
+RECENT EVENTS:
+{recent_events_text}
+
+INSTRUCTIONS:
+- Create a unique, narrative-quality event (NOT a simple template-style sentence)
+- The event should be 2-4 sentences, vivid and immersive
+- It should logically follow from the world state and recent events when possible
+- Include specific names, places, and details from the world elements
+- Make it feel like a passage from a fantasy novel or D&D campaign
+- Advance existing storylines OR introduce compelling new ones
+- Choose an appropriate category from: {', '.join(event_categories)}
+
+Respond in JSON format:
+{{
+    "category": "the event category",
+    "event_text": "The full event narrative text",
+    "consequences": "What might happen as a result (1-2 sentences)",
+    "connections": "How this connects to recent events (1-2 sentences)",
+    "hidden_details": "What's happening behind the scenes that players don't know (2-3 sentences)",
+    "plot_hooks": "Adventure opportunities for players (2-3 bullet points as a single string)",
+    "visual_description": "A vivid visual description for illustration (1-2 sentences)"
+}}"""
+
+            self.debug_print("Generating fully AI-created event...")
+            response_text = self._generate_text(prompt, json_mode=True)
+            result = self.parse_json_response(response_text)
+
+            if isinstance(result, list):
+                result = result[0] if result else {}
+
+            # Validate we got the required fields
+            if result and "event_text" in result and "category" in result:
+                # Ensure category is valid
+                if result["category"] not in event_categories:
+                    result["category"] = random.choice(event_categories)
+                self.debug_print(f"AI generated event in category: {result['category']}")
+                return result
+            else:
+                self.debug_print(f"AI event generation returned incomplete data: {result}")
+                return None
+
+        except Exception as e:
+            self.debug_print(f"Error generating full AI event: {e}")
             if self.debug:
                 traceback.print_exc()
             return None
