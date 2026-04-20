@@ -40,7 +40,7 @@ from fantasy_events_data import (
     plot_conflict_subjects, plot_location_phenomena, plot_location_affected,
     plot_rising_forces, plot_world_changes,
     # Misc
-    season_emojis
+    season_emojis,
 
     event_categories, locations, factions, characters,
     magic_fields, resources, monsters, other_realms, inn_names, fill_ins,
