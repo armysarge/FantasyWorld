@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import re
+import time
 import traceback
 from pathlib import Path
 from typing import Dict, Optional, Any, List, Tuple
@@ -159,46 +161,74 @@ class AIFunctions:
         return ""
 
     def _generate_text_gemini(self, prompt: str, json_mode: bool = False) -> str:
-        """Generate text using Gemini."""
+        """Generate text using Gemini, with automatic retry on transient 503/429 errors."""
         contents = [
             types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)]
             )
         ]
+        config = types.GenerateContentConfig(response_mime_type="application/json") if json_mode else None
 
-        config = {}
-        if json_mode:
-            config = types.GenerateContentConfig(response_mime_type="application/json")
-
-        response = self.gemini_client.models.generate_content(
-            model=self.gemini_model,
-            contents=contents,
-            config=config if config else None
-        )
-
-        response_text = ""
-        if hasattr(response, 'text'):
-            response_text = response.text
-        elif hasattr(response, 'candidates') and response.candidates:
-            for candidate in response.candidates:
-                if hasattr(candidate, 'content') and candidate.content:
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'text'):
-                            response_text += part.text
-        return response_text
+        max_retries = 4
+        base_delay = 5  # seconds
+        for attempt in range(max_retries):
+            try:
+                response = self.gemini_client.models.generate_content(
+                    model=self.gemini_model,
+                    contents=contents,
+                    config=config,
+                )
+                response_text = ""
+                if hasattr(response, 'text'):
+                    response_text = response.text
+                elif hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text'):
+                                    response_text += part.text
+                return response_text
+            except Exception as e:
+                err_str = str(e)
+                err_str = str(e)
+                is_rate_limit = "503" in err_str or "UNAVAILABLE" in err_str
+                is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
+                is_not_found = "404" in err_str or "NOT_FOUND" in err_str
+                if is_not_found:
+                    # Extract model name hint from error message
+                    m = re.search(r"models/(\S+) is not found", err_str)
+                    bad_model = m.group(1) if m else self.gemini_model
+                    print(f"[AI Error] Model '{bad_model}' does not exist. Use the [M] menu to set a valid model (e.g. gemini-2.0-flash).")
+                    return ""
+                # Parse the API-suggested retry delay (e.g. "Please retry in 18.7s")
+                m = re.search(r'retry in (\d+(?:\.\d+)?)s', err_str, re.IGNORECASE)
+                suggested_delay = float(m.group(1)) + 5 if m else 0
+                if (is_rate_limit or is_quota) and attempt < max_retries - 1:
+                    delay = max(base_delay * (2 ** attempt), suggested_delay)
+                    print(f"[AI] Gemini quota/rate error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.0f}s")
+                    time.sleep(delay)
+                else:
+                    print(f"[AI Error] Gemini text generation failed: {e}")
+                    traceback.print_exc()
+                    return ""
 
     def _generate_text_openai(self, prompt: str, json_mode: bool = False) -> str:
         """Generate text using OpenAI-compatible API."""
-        kwargs = {
-            "model": self.openai_model,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if json_mode:
-            kwargs["response_format"] = {"type": "json_object"}
+        try:
+            kwargs = {
+                "model": self.openai_model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
 
-        response = self.openai_client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content or ""
+            response = self.openai_client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            print(f"[AI Error] OpenAI text generation failed: {e}")
+            traceback.print_exc()
+            return ""
 
     def save_binary_file(self, file_name, data):
         """Save binary data to a file."""
@@ -283,9 +313,8 @@ class AIFunctions:
                         "formatted_message": telegram_msg
                     }
             except Exception as e:
-                self.debug_print(f"Error using AI for summary: {e}")
-                if self.debug:
-                    traceback.print_exc()
+                print(f"[AI Error] summarize_event_for_telegram: {e}")
+                traceback.print_exc()
 
         # Fallback if AI fails or isn't available
         event_content = event_content.replace("*", "\\*").replace("[", "\\[").replace("`", "\\`").replace("_", "\\_")
@@ -341,9 +370,8 @@ class AIFunctions:
             return self.parse_json_response(response_text)
 
         except Exception as e:
-            self.debug_print(f"Error using AI to enhance event: {e}")
-            if self.debug:
-                traceback.print_exc()
+            print(f"[AI Error] get_ai_enhanced_event_details: {e}")
+            traceback.print_exc()
             return {}
 
     def generate_event_image(self, visual_description: str, event_id: int, images_dir: Path) -> Optional[str]:
@@ -426,21 +454,18 @@ class AIFunctions:
                         return None
 
                 except Exception as e:
-                    self.debug_print(f"Error during image streaming: {e}")
-                    if self.debug:
-                        traceback.print_exc()
+                    print(f"[AI Error] image streaming: {e}")
+                    traceback.print_exc()
                     return None
 
             except Exception as e:
-                self.debug_print(f"Error with image generation model: {e}")
-                if self.debug:
-                    traceback.print_exc()
+                print(f"[AI Error] image generation model: {e}")
+                traceback.print_exc()
                 return None
 
         except Exception as e:
-            self.debug_print(f"Error generating image: {e}")
-            if self.debug:
-                traceback.print_exc()
+            print(f"[AI Error] generate_event_image: {e}")
+            traceback.print_exc()
             return None
 
     def generate_full_ai_event(self, world_name: str, world_state: Dict[str, Any],
@@ -549,9 +574,8 @@ Respond in JSON format:
                 return None
 
         except Exception as e:
-            self.debug_print(f"Error generating full AI event: {e}")
-            if self.debug:
-                traceback.print_exc()
+            print(f"[AI Error] generate_full_ai_event: {e}")
+            traceback.print_exc()
             return None
 
     def parse_json_response(self, response_text: str) -> Dict[str, Any]:
