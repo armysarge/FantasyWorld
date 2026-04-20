@@ -5,6 +5,8 @@
 [![SQLLite](https://img.shields.io/badge/SQLite-3.8%2B-blue.svg)](https://www.sqlite.org/index.html)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-API-blue.svg)](https://developers.google.com/gemini)
+[![OpenAI](https://img.shields.io/badge/OpenAI-API-green.svg)](https://platform.openai.com/)
+[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-API-purple.svg)](https://github.com/features/copilot)
 [![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-5.0-blue.svg)](https://core.telegram.org/bots/api)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -13,20 +15,38 @@
 
 # Fantasy World Event Generator
 
-An AI-powered fantasy world event generator that creates dynamic, evolving stories using Google's Gemini AI and optional Telegram integration.
+An AI-powered fantasy world event generator that creates dynamic, evolving stories with **multi-AI provider support** (Google Gemini, OpenAI, GitHub Copilot, or any OpenAI-compatible endpoint) and optional Telegram integration.
 
 ![Fantasy World Generator](image.webp)
 
 
 ## Features
 
-- **Procedural Fantasy Events**: Generate events in diverse categories like political, magical, social, economic, conflict, mystery, and more
-- **Dynamic World State**: World state evolves with each event, including seasons, weather, character relationships, and faction dynamics
-- **AI-Enhanced Storytelling**: Integration with Google's Gemini AI to add rich details, consequences,  plot hooks, connections between events
-- **Event Images**: Generate fantasy illustrations for events (requires Google Gemini API key)
-- **Telegram Integration**: Broadcast events (with images) to Telegram chats with special admin-only details
-- **Persistent Worlds**: Save and reload your fantasy worlds with persistent state
-- **SQLite Database**: All world data, events, and relationships are stored in SQLite databases, making it easy to access and reuse the data in other projects
+- **Multi-AI Provider Support**: Choose between Google Gemini, OpenAI, GitHub Copilot, or any custom OpenAI-compatible API — switch providers and models at any time
+- **Three Event Modes**:
+  - **Template** — Classic procedural generation from an extensive template library
+  - **Hybrid** — 40% fully AI-generated events, 60% AI-enhanced templates for the best of both worlds
+  - **Full AI** — 100% AI-generated events with complete creative freedom
+- **Procedural Fantasy Events**: Generate events across 12+ categories including political, magical, social, economic, conflict, mystery, natural disasters, and more
+- **Dynamic World State**: World state evolves with each event — seasons cycle, weather shifts, character relationships develop, and faction dynamics change
+- **AI-Enhanced Storytelling**: Rich details, consequences, plot hooks, and connections between events
+- **Event Images**: Generate fantasy illustrations for events (Gemini provider)
+- **Telegram Integration**: Broadcast events (with images) to Telegram chats with interactive admin-only detail buttons
+- **Persistent Worlds**: Save and reload your fantasy worlds with full state persistence
+- **Persistent Settings**: API keys, provider, model, event mode, and Telegram config are saved between sessions
+- **Extensive Template Library**: 500+ templates across weather, disasters, mysteries, politics, economics, social events, magic, character development, and more — all in a separate data file for easy customization
+- **SQLite Database**: All world data, events, and relationships are stored in SQLite databases for easy access and reuse
+
+## AI Providers
+
+| Provider | Text Generation | Image Generation | Models |
+|----------|:-:|:-:|--------|
+| **Google Gemini** | ✅ | ✅ | gemini-2.0-flash, gemini-2.5-flash-preview-04-17, etc. |
+| **OpenAI** | ✅ | ❌ | gpt-4o, gpt-4o-mini, gpt-4-turbo, etc. |
+| **GitHub Copilot** | ✅ | ❌ | gpt-4o, gpt-4o-mini, o3-mini, etc. |
+| **Custom (OpenAI-compatible)** | ✅ | ❌ | Any model at your endpoint |
+
+> **Note:** Image generation is currently only supported with the Google Gemini provider. Other providers will gracefully skip image generation.
 
 ## Data Persistence
 
@@ -69,7 +89,11 @@ Each event maintains its own private data, ensuring that buttons from previous e
 
 - Python 3.8+
 - Required packages: see `requirements.txt`
-- Optional: Google Gemini API key for AI-enhanced features
+- At least one AI provider API key:
+  - Google Gemini API key (recommended — supports both text and image generation)
+  - OpenAI API key
+  - GitHub Copilot API key
+  - Or a custom OpenAI-compatible endpoint + key
 - Optional: Telegram Bot Token for messaging integration
 
 ## Installation
@@ -95,8 +119,13 @@ Each event maintains its own private data, ensuring that buttons from previous e
 When you start the program, you'll be prompted to:
 
 1. Enter your fantasy world name
-2. Optionally provide a Google Gemini API key for AI-enhanced features
-3. Optionally provide a Telegram Bot Token and Chat Id for sending events to Telegram
+2. Select your AI provider (Gemini, OpenAI, GitHub Copilot, or Custom)
+3. Enter your API key for the chosen provider
+4. Optionally specify a model (or use the provider's default)
+5. Choose an event mode (Template, Hybrid, or Full AI)
+6. Optionally provide a Telegram Bot Token and Chat ID for sending events to Telegram
+
+All settings are saved automatically and reused on the next run. You can update them at any time when prompted.
 
 Events will automatically be generated at random intervals (10-120 minutes by default), and you'll see them appear in the console with detailed information and story elements.
 
@@ -104,16 +133,17 @@ Events will automatically be generated at random intervals (10-120 minutes by de
 
 You can customize the generator by:
 
-1. Editing `fantasy_events_data.py` to modify the event templates, characters, locations, etc.
+1. Editing `fantasy_events_data.py` to modify event templates, characters, locations, weather patterns, and more
 2. Adjusting the event frequency in `Fantasy.py`
-3. Adding your own event categories and templates
+3. Adding your own event categories and templates to `fantasy_events_data.py`
+4. Switching between event modes (template / hybrid / full_ai) for different levels of AI creativity
 
 ## Project Structure
 
 - `Fantasy.py` - Main script and event generation engine
-- `ai_functions.py` - AI integration using Google's Gemini API
+- `ai_functions.py` - Multi-provider AI integration (Gemini, OpenAI, GitHub Copilot, Custom)
 - `telegram_functions.py` - Telegram integration for broadcasting events
-- `fantasy_events_data.py` - Event templates and world data
+- `fantasy_events_data.py` - Extensive event templates, world data, and fill-in libraries
 - `requirements.txt` - Required Python dependencies
 
 ## Console Example
@@ -132,5 +162,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Google Gemini API for providing the AI capabilities
+- Google Gemini API for AI text and image generation
+- OpenAI API for text generation
+- GitHub Copilot for text generation
 - Telegram Bot API for messaging features
