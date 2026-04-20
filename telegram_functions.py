@@ -211,6 +211,7 @@ class TelegramFunctions:
                         data=payload,
                         files={"photo": photo}
                     )
+                return response.status_code == 200
             else:
                 # Just send the text message
                 self.debug_print(f"Sending regular text message")
@@ -349,7 +350,8 @@ class TelegramFunctions:
                             # Handle the callback query
                             self.handle_callback_query(callback_data, callback_id)
 
-            except Exception as e:            self.debug_print(f"Error polling for callback queries: {e}")
+            except Exception as e:
+                self.debug_print(f"Error polling for callback queries: {e}")
 
             # Sleep briefly to avoid hammering the API
             time.sleep(1)
