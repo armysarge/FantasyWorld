@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The {{ world_name }} Chronicle</title>
+
+    <!-- Google Fonts: fantasy-newspaper feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/newspaper.css') }}">
+
+    <meta http-equiv="refresh" content="120">
+</head>
+<body>
+
+<div class="newspaper">
+
+    <!-- ── Masthead ─────────────────────────────────────────────── -->
+    <header class="masthead">
+        <div class="masthead-ornament">❦ ❦ ❦</div>
+        <h1 class="masthead-title">The {{ world_name }} Chronicle</h1>
+        <div class="masthead-subtitle">
+            <span class="masthead-motto">✦ All the News from the Realm ✦</span>
+        </div>
+        <div class="masthead-meta">
+            {% if event and event.world_time %}
+            <span>Year {{ event.world_time.get('year', '???') }}</span>
+            <span class="sep">⬥</span>
+            <span>{{ event.world_time.get('season', '').capitalize() }}</span>
+            <span class="sep">⬥</span>
+            <span>{{ event.world_time.get('time_of_day', '').capitalize() }}</span>
+            <span class="sep">⬥</span>
+            <span>{{ event.world_time.get('weather', '').capitalize() }}</span>
+            {% endif %}
+            <span class="sep">⬥</span>
+            <span>Edition №{{ event.id if event else '—' }}</span>
+        </div>
+        <div class="masthead-rule"></div>
+    </header>
+
+    {% if event %}
+    <!-- ── Main Story ───────────────────────────────────────────── -->
+    <main class="columns">
+
+        <article class="main-story">
+
+            <!-- Category ribbon -->
+            <div class="category-ribbon {{ event.category }}">
+                {{ event.category | upper }}
+            </div>
+
+            <!-- Headline -->
+            <h2 class="headline">
+                {{ event.headline }}
+            </h2>
+
+            <div class="byline">
+                <span class="dateline">{{ event.location }}</span> &mdash;
+                <time>{{ event.timestamp }}</time>
+            </div>
+
+            <!-- Image -->
+            {% if event.image_url %}
+            <figure class="story-image">
+                <img src="{{ event.image_url }}" alt="Event illustration">
+                <figcaption>An artist's rendition of the events at {{ event.location }}</figcaption>
+            </figure>
+            {% endif %}
+
+            <!-- Article body -->
+            <div class="article-body">
+                {% for line in event.body_text.split('\n') %}
+                    {% if line.strip() %}
+                    <p>{{ line }}</p>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Consequences / sidebar box -->
+            {% if event.consequences %}
+            <aside class="story-aside consequences">
+                <h3>⚠ Possible Consequences</h3>
+                {% for line in event.consequences.split('\n') %}
+                    {% if line.strip() %}<p>{{ line }}</p>{% endif %}
+                {% endfor %}
+            </aside>
+            {% endif %}
+
+            <!-- Connections -->
+            {% if event.connections %}
+            <aside class="story-aside connections">
+                <h3>🔗 Connections to Prior Events</h3>
+                {% for line in event.connections.split('\n') %}
+                    {% if line.strip() %}<p>{{ line }}</p>{% endif %}
+                {% endfor %}
+            </aside>
+            {% endif %}
+
+        </article>
+
+        <!-- ── Sidebar ──────────────────────────────────────────── -->
+        <aside class="sidebar">
+
+            <!-- Characters involved -->
+            {% if event.characters %}
+            <div class="sidebar-box characters-box">
+                <h3>Persons of Interest</h3>
+                <ul>
+                {% for c in event.characters %}
+                    <li>
+                        <strong>{{ c.name if c is mapping else c }}</strong>
+                        {% if c is mapping and c.type %}
+                        <span class="char-type">({{ c.type }})</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Plot hooks -->
+            {% if event.plot_hooks %}
+            <div class="sidebar-box hooks-box">
+                <h3>🪝 Adventure Hooks</h3>
+                {% for line in event.plot_hooks.split('\n') %}
+                    {% if line.strip() %}<p>{{ line }}</p>{% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Hidden details -->
+            {% if event.hidden_details %}
+            <div class="sidebar-box hidden-box">
+                <h3>🕵️ Behind the Scenes</h3>
+                {% for line in event.hidden_details.split('\n') %}
+                    {% if line.strip() %}<p>{{ line }}</p>{% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Recent headlines -->
+            {% if recent and recent | length > 1 %}
+            <div class="sidebar-box recent-box">
+                <h3>Recent Headlines</h3>
+                <ul class="recent-list">
+                {% for r in recent %}
+                    {% if r.id != event.id %}
+                    <li>
+                        <a href="/event/{{ r.id }}">
+                            <span class="recent-cat {{ r.category }}">{{ r.category }}</span>
+                            {{ r.headline }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+        </aside>
+
+    </main>
+
+    {% else %}
+    <!-- No events yet -->
+    <div class="no-events">
+        <h2>The presses are warming up…</h2>
+        <p>No events have been recorded in <strong>{{ world_name }}</strong> yet.<br>
+           Check back once the first event has been generated.</p>
+    </div>
+    {% endif %}
+
+    <!-- ── Footer ───────────────────────────────────────────────── -->
+    <footer class="paper-footer">
+        <div class="footer-rule"></div>
+        <p>Printed by enchanted press in the city of {{ world_name }} &bull;
+           Page refreshes every 2 minutes &bull;
+           <a href="/api/latest">Raw JSON</a></p>
+    </footer>
+
+</div>
+
+</body>
+</html>

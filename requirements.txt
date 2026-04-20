@@ -7,3 +7,4 @@ python-telegram-bot
 requests
 mimetypes-magic
 matplotlib
+flask

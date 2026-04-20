@@ -41,22 +41,6 @@ from fantasy_events_data import (
     plot_rising_forces, plot_world_changes,
     # Misc
     season_emojis,
-
-    event_categories, locations, factions, characters,
-    magic_fields, resources, monsters, other_realms, inn_names, fill_ins,
-    # World state templates
-    weather_by_season, extreme_weather_events, natural_disaster_events,
-    mystery_events, mundane_events, conflict_events, political_events,
-    social_events, economic_events, magical_occurrence_events,
-    character_developments, realm_shift_events, world_change_types,
-    # Location and world creation templates
-    location_feature_templates, location_feature_fill_ins,
-    world_description_adjectives, world_description_themes, world_description_hooks,
-    # Plot templates
-    plot_conflict_subjects, plot_location_phenomena, plot_location_affected,
-    plot_rising_forces, plot_world_changes,
-    # Misc
-    season_emojis
 )
 
 # Resolve paths relative to this script's directory, not CWD
@@ -540,9 +524,16 @@ class FantasyWorldEventGenerator:
                 location TEXT,
                 characters TEXT,
                 factions TEXT,
-                image_path TEXT
+                image_path TEXT,
+                headline TEXT DEFAULT ''
             )
             ''')
+
+            # Migrate existing DBs that don't have the headline column yet
+            try:
+                cursor.execute("ALTER TABLE events ADD COLUMN headline TEXT DEFAULT ''")
+            except Exception:
+                pass  # Column already exists
 
             # Create world state table
             cursor.execute('''
@@ -607,11 +598,12 @@ class FantasyWorldEventGenerator:
             characters = json.dumps(event_data.get('characters', []))
             factions = json.dumps(event_data.get('factions', []))
             image_path = event_data.get('image_path', '')
+            headline = event_data.get('headline', '')
 
             cursor.execute('''
-            INSERT INTO events (timestamp, category, event_text, location, characters, factions, image_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (timestamp, category, event_text, location, characters, factions, image_path))
+            INSERT INTO events (timestamp, category, event_text, location, characters, factions, image_path, headline)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (timestamp, category, event_text, location, characters, factions, image_path, headline))
 
             # Get the event ID that was just inserted
             event_id = cursor.lastrowid
@@ -1475,6 +1467,7 @@ def wait_with_menu(generator: 'FantasyWorldEventGenerator', wait_seconds: int, c
                     print(f"  {green}[7]{reset} View active plots")
                     print(f"  {green}[8]{reset} View character details")
                     print(f"  {green}[9]{reset} View location details")
+                    print(f"  {green}[N]{reset} Open newspaper in browser")
                     print(f"  {red}[0]{reset} Exit")
                     print(f"  {green}[Enter]{reset} Return to waiting")
 
@@ -1555,6 +1548,9 @@ def wait_with_menu(generator: 'FantasyWorldEventGenerator', wait_seconds: int, c
                         generator.show_character_details()
                     elif choice == '9':
                         generator.show_location_details()
+                    elif choice.lower() == 'n':
+                        import webbrowser
+                        webbrowser.open('http://localhost:5000')
                     elif choice == '0':
                         raise KeyboardInterrupt
                     else:
@@ -1668,6 +1664,24 @@ def main():
                         generator.telegram.get_chat_id(),
                         ai_provider=cfg['ai_provider'], ai_model=cfg['ai_model'],
                         ai_base_url=cfg['ai_base_url'], ai_event_mode=cfg['ai_event_mode'])
+
+    # ── Start the newspaper web server ──
+    try:
+        from web_server import start_web_server
+        web_thread = start_web_server(
+            db_path=generator.db_path,
+            world_name=world_name,
+            images_dir=str(generator.images_dir),
+            port=5000,
+        )
+    except ImportError as imp_err:
+        print(f"(Flask not installed — newspaper web page disabled. pip install flask)")
+        web_thread = None
+    except Exception as exc:
+        import traceback
+        print(f"Could not start web server: {exc}")
+        traceback.print_exc()
+        web_thread = None
 
     # Print world information
     print(f"\nWorld '{world_name}' created successfully!")

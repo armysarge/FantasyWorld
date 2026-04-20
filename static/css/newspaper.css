@@ -1,0 +1,301 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Fantasy Newspaper — Tabloid-Style CSS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ---------- reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --parchment:    #f5f0e1;
+    --parchment-dk: #e8dcc8;
+    --ink:          #2c2416;
+    --ink-light:    #5a4a32;
+    --accent:       #8b1a1a;
+    --accent-gold:  #b8860b;
+    --rule:         #b5a68a;
+    --shadow:       rgba(44,36,22,.12);
+}
+
+html { font-size: 17px; }
+
+body {
+    background: #d5cdb7 url("data:image/svg+xml,%3Csvg width='6' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h6v6H0z' fill='%23cbc3ad' fill-opacity='.25'/%3E%3C/svg%3E");
+    color: var(--ink);
+    font-family: 'Libre Baskerville', 'Georgia', serif;
+    line-height: 1.65;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+/* ---------- newspaper wrapper ---------- */
+.newspaper {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--parchment);
+    border: 2px solid var(--rule);
+    box-shadow: 0 8px 30px var(--shadow), 0 2px 6px var(--shadow);
+    padding: 2rem 2.5rem;
+    position: relative;
+}
+.newspaper::before,
+.newspaper::after {
+    content: '';
+    position: absolute;
+    left: 8px; right: 8px;
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--rule) 0, var(--rule) 4px, transparent 4px, transparent 8px);
+}
+.newspaper::before { top: 6px; }
+.newspaper::after  { bottom: 6px; }
+
+/* ---------- masthead ---------- */
+.masthead { text-align: center; margin-bottom: 1.5rem; }
+
+.masthead-ornament {
+    font-size: 1.2rem;
+    color: var(--accent-gold);
+    letter-spacing: .6rem;
+    margin-bottom: .3rem;
+}
+
+.masthead-title {
+    font-family: 'UnifrakturMaguntia', cursive;
+    font-size: 3.6rem;
+    line-height: 1.1;
+    color: var(--ink);
+    letter-spacing: .04em;
+    text-shadow: 1px 1px 0 var(--parchment-dk);
+}
+
+.masthead-subtitle { margin: .3rem 0 .5rem; }
+
+.masthead-motto {
+    font-family: 'IM Fell English SC', serif;
+    font-size: .95rem;
+    letter-spacing: .25em;
+    color: var(--ink-light);
+    text-transform: uppercase;
+}
+
+.masthead-meta {
+    font-size: .78rem;
+    color: var(--ink-light);
+    font-style: italic;
+}
+.masthead-meta .sep { margin: 0 .4rem; }
+
+.masthead-rule {
+    margin-top: .8rem;
+    border: none;
+    height: 4px;
+    background:
+        linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat,
+        linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat;
+    background-position: center top, center bottom;
+    height: 6px;
+}
+
+/* ---------- layout: two-column ---------- */
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 800px) {
+    .columns { grid-template-columns: 1fr; }
+    .sidebar { order: 2; }
+}
+
+/* ---------- main story ---------- */
+.main-story { min-width: 0; }
+
+.category-ribbon {
+    display: inline-block;
+    font-family: 'IM Fell English SC', serif;
+    font-size: .7rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    padding: .2rem .7rem;
+    margin-bottom: .6rem;
+    color: var(--parchment);
+    background: var(--ink);
+    border-radius: 2px;
+}
+
+/* Category-specific ribbon colours */
+.category-ribbon.political   { background: #2a4d8f; }
+.category-ribbon.magical     { background: #6b2fa0; }
+.category-ribbon.social      { background: #1a7a7a; }
+.category-ribbon.economic    { background: #8b6914; }
+.category-ribbon.natural     { background: #2a6b2a; }
+.category-ribbon.conflict    { background: #8b1a1a; }
+.category-ribbon.mystery     { background: #5a2a6b; }
+.category-ribbon.mundane     { background: #6b6b5a; }
+.category-ribbon.religious   { background: #8b7a14; }
+.category-ribbon.astronomical{ background: #1a5a8b; }
+.category-ribbon.legendary   { background: #8b2a2a; }
+
+.headline {
+    font-family: 'Playfair Display', 'Georgia', serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: .4rem;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: .4rem;
+}
+
+.byline {
+    font-size: .8rem;
+    font-style: italic;
+    color: var(--ink-light);
+    margin-bottom: 1rem;
+}
+.dateline { font-weight: 700; text-transform: uppercase; font-style: normal; }
+
+/* story image */
+.story-image {
+    margin: 1rem 0;
+    border: 3px solid var(--rule);
+    padding: 4px;
+    background: var(--parchment-dk);
+}
+.story-image img {
+    width: 100%;
+    display: block;
+    filter: sepia(15%) contrast(1.05);
+}
+.story-image figcaption {
+    font-size: .72rem;
+    font-style: italic;
+    text-align: center;
+    color: var(--ink-light);
+    padding: .4rem .5rem 0;
+}
+
+/* article body */
+.article-body p {
+    margin-bottom: .8rem;
+    text-align: justify;
+    text-indent: 1.5em;
+}
+.article-body p:first-child { text-indent: 0; }
+.article-body p:first-child::first-letter {
+    font-family: 'UnifrakturMaguntia', cursive;
+    font-size: 3.4rem;
+    float: left;
+    line-height: .85;
+    padding-right: .12em;
+    padding-top: .06em;
+    color: var(--accent);
+}
+
+/* aside boxes in the story column */
+.story-aside {
+    margin: 1.2rem 0;
+    padding: .8rem 1rem;
+    border-left: 4px solid var(--accent-gold);
+    background: var(--parchment-dk);
+}
+.story-aside h3 {
+    font-family: 'IM Fell English SC', serif;
+    font-size: .9rem;
+    margin-bottom: .4rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+}
+.story-aside p {
+    font-size: .85rem;
+    margin-bottom: .3rem;
+}
+
+/* ---------- sidebar ---------- */
+.sidebar {
+    border-left: 2px solid var(--rule);
+    padding-left: 1.5rem;
+}
+
+.sidebar-box {
+    margin-bottom: 1.4rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed var(--rule);
+}
+.sidebar-box:last-child { border-bottom: none; }
+
+.sidebar-box h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--accent-gold);
+    padding-bottom: .2rem;
+}
+
+.sidebar-box ul { list-style: none; }
+.sidebar-box li { margin-bottom: .35rem; font-size: .88rem; }
+.char-type { font-size: .78rem; color: var(--ink-light); }
+
+.sidebar-box p { font-size: .85rem; margin-bottom: .3rem; }
+
+/* recent headlines list */
+.recent-list li {
+    border-bottom: 1px dotted var(--rule);
+    padding: .35rem 0;
+}
+.recent-list a {
+    color: var(--ink);
+    text-decoration: none;
+    font-size: .82rem;
+    line-height: 1.3;
+    display: block;
+}
+.recent-list a:hover { color: var(--accent); }
+
+.recent-cat {
+    display: inline-block;
+    font-size: .6rem;
+    font-family: 'IM Fell English SC', serif;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: .1rem .4rem;
+    color: var(--parchment);
+    background: var(--ink-light);
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: .3rem;
+}
+
+/* ---------- no events ---------- */
+.no-events {
+    text-align: center;
+    padding: 4rem 1rem;
+}
+.no-events h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    margin-bottom: .6rem;
+    color: var(--ink-light);
+}
+.no-events p { color: var(--ink-light); }
+
+/* ---------- footer ---------- */
+.paper-footer {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: .72rem;
+    color: var(--ink-light);
+}
+.footer-rule {
+    height: 3px;
+    background:
+        linear-gradient(var(--rule), var(--rule)) center / 100% 1px no-repeat,
+        linear-gradient(var(--rule), var(--rule)) center / 100% 1px no-repeat;
+    background-position: center top, center bottom;
+    margin-bottom: .6rem;
+}
+.paper-footer a { color: var(--accent); }
