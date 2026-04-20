@@ -1319,7 +1319,7 @@ def main():
 
         # API key
         provider_info = AI_PROVIDERS[ai_provider]
-        api_key = input(f"\nEnter your {provider_info['name']} API key (or leave blank to skip AI features): ").strip()
+        api_key = input(f"\nEnter your {provider_info['name']} API key/token (or leave blank to skip AI features): ").strip()
 
         # Model selection
         default_model = provider_info["default_model"]
