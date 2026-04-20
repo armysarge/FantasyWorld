@@ -1321,6 +1321,167 @@ class FantasyWorldEventGenerator:
         if hasattr(self, 'world_dir'):
             print("World files directory:", self.world_dir)
 
+
+def wait_with_menu(generator: 'FantasyWorldEventGenerator', wait_seconds: int, config: dict, save_fn) -> bool:
+    """Wait for the next event with a live countdown and interactive menu.
+
+    Returns True if the user chose to trigger the next event immediately.
+    Raises KeyboardInterrupt if the user chose to exit.
+    """
+    try:
+        import msvcrt
+        has_msvcrt = True
+    except ImportError:
+        has_msvcrt = False
+
+    has_color = COLOR_SUPPORT
+    cyan   = Fore.CYAN    if has_color else ""
+    yellow = Fore.YELLOW  if has_color else ""
+    green  = Fore.GREEN   if has_color else ""
+    red    = Fore.RED     if has_color else ""
+    reset  = Style.RESET_ALL if has_color else ""
+
+    end_time = time.time() + wait_seconds
+    trigger_now = False
+
+    if not has_msvcrt:
+        # Fallback for non-Windows: just sleep, no interactive menu
+        print(f"\n{cyan}Waiting {wait_seconds // 60}m for next event... (Press Ctrl+C to exit){reset}")
+        time.sleep(wait_seconds)
+        return False
+
+    print(f"\n{cyan}Waiting for next event... Press {yellow}[M]{cyan} for menu{reset}")
+
+    while time.time() < end_time and not trigger_now:
+        remaining = max(0, int(end_time - time.time()))
+        mins, secs = divmod(remaining, 60)
+        sys.stdout.write(f"\r  {cyan}Next event in:{reset} {mins:02d}:{secs:02d}  [{yellow}M{reset}] Menu  ")
+        sys.stdout.flush()
+
+        if msvcrt.kbhit():
+            key = msvcrt.getch()
+            try:
+                key_char = key.decode('utf-8').lower()
+            except Exception:
+                key_char = ''
+
+            if key_char == 'm':
+                sys.stdout.write("\r" + " " * 60 + "\r")
+                sys.stdout.flush()
+
+                # ---- MENU LOOP ----
+                while True:
+                    print(f"\n{yellow}{'='*40}")
+                    print(f"  MENU")
+                    print(f"{'='*40}{reset}")
+                    print(f"  {green}[1]{reset} Trigger next event now")
+                    print(f"  {green}[2]{reset} Change AI provider  (current: {cyan}{config['ai_provider']}{reset})")
+                    print(f"  {green}[3]{reset} Change AI model     (current: {cyan}{config['ai_model'] or 'default'}{reset})")
+                    print(f"  {green}[4]{reset} Change event mode   (current: {cyan}{config['ai_event_mode']}{reset})")
+                    print(f"  {green}[5]{reset} Change wait interval (current: {cyan}{config['min_wait']//60}-{config['max_wait']//60} min{reset})")
+                    print(f"  {green}[6]{reset} View world summary")
+                    print(f"  {green}[7]{reset} View active plots")
+                    print(f"  {green}[8]{reset} View character details")
+                    print(f"  {green}[9]{reset} View location details")
+                    print(f"  {red}[0]{reset} Exit")
+                    print(f"  {green}[Enter]{reset} Return to waiting")
+
+                    choice = input("\n  Enter choice: ").strip()
+
+                    if choice == '1':
+                        trigger_now = True
+                        break
+
+                    elif choice == '2':
+                        print("\nAvailable providers:")
+                        for k, v in AI_PROVIDERS.items():
+                            print(f"  {green}{k}{reset}: {v['name']} — {v['description']}")
+                        new_provider = input("New provider: ").strip().lower()
+                        if new_provider in AI_PROVIDERS:
+                            new_key = input(f"New API key/token (Enter to keep current): ").strip() or config['api_key']
+                            new_base_url = config['ai_base_url']
+                            if new_provider == "custom_openai":
+                                new_base_url = input("Custom base URL: ").strip() or new_base_url
+                            config['ai_provider'] = new_provider
+                            config['api_key'] = new_key
+                            config['ai_base_url'] = new_base_url
+                            generator.ai = AIFunctions(new_key, debug=generator.debug_mode,
+                                                       provider=new_provider,
+                                                       model=config['ai_model'],
+                                                       base_url=new_base_url)
+                            generator.gemini_available = generator.ai.ai_available
+                            save_fn(config)
+                            print(f"{green}Provider changed to {AI_PROVIDERS[new_provider]['name']}{reset}")
+                        else:
+                            print(f"{red}Invalid provider.{reset}")
+
+                    elif choice == '3':
+                        default = AI_PROVIDERS.get(config['ai_provider'], {}).get('default_model', '')
+                        new_model = input(f"New model name (Enter for default '{default}'): ").strip() or default
+                        config['ai_model'] = new_model
+                        generator.ai = AIFunctions(config['api_key'], debug=generator.debug_mode,
+                                                   provider=config['ai_provider'],
+                                                   model=new_model,
+                                                   base_url=config['ai_base_url'])
+                        generator.gemini_available = generator.ai.ai_available
+                        save_fn(config)
+                        print(f"{green}Model changed to '{new_model}'{reset}")
+
+                    elif choice == '4':
+                        print("  template — Classic template-based events only")
+                        print("  hybrid   — Mix of template + AI-generated events")
+                        print("  full_ai  — Fully AI-generated events only")
+                        new_mode = input("New mode [template/hybrid/full_ai]: ").strip().lower()
+                        if new_mode in ("template", "hybrid", "full_ai"):
+                            config['ai_event_mode'] = new_mode
+                            generator.ai_event_mode = new_mode
+                            save_fn(config)
+                            print(f"{green}Event mode changed to '{new_mode}'{reset}")
+                        else:
+                            print(f"{red}Invalid mode.{reset}")
+
+                    elif choice == '5':
+                        try:
+                            new_min = int(input("Min wait in minutes (1-999): ").strip())
+                            new_max = int(input("Max wait in minutes (1-999): ").strip())
+                            if 1 <= new_min <= new_max <= 999:
+                                config['min_wait'] = new_min * 60
+                                config['max_wait'] = new_max * 60
+                                # Reset countdown with new random interval
+                                end_time = time.time() + random.randint(config['min_wait'], config['max_wait'])
+                                print(f"{green}Wait interval set to {new_min}-{new_max} minutes{reset}")
+                            else:
+                                print(f"{red}Invalid range (min must be ≤ max, both 1-999).{reset}")
+                        except ValueError:
+                            print(f"{red}Invalid input.{reset}")
+
+                    elif choice == '6':
+                        generator.show_world_summary()
+                    elif choice == '7':
+                        generator.show_active_plots()
+                    elif choice == '8':
+                        generator.show_character_details()
+                    elif choice == '9':
+                        generator.show_location_details()
+                    elif choice == '0':
+                        raise KeyboardInterrupt
+                    else:
+                        # Enter or unrecognised → back to waiting
+                        break
+
+                if trigger_now:
+                    break
+                remaining = max(0, int(end_time - time.time()))
+                mins2, secs2 = divmod(remaining, 60)
+                print(f"\n{cyan}Resuming wait... {mins2:02d}:{secs2:02d} remaining. Press [M] for menu.{reset}")
+
+        time.sleep(0.2)
+
+    sys.stdout.write("\r" + " " * 60 + "\r")
+    sys.stdout.flush()
+    return trigger_now
+
+
 def main():
     """Main function to run the Fantasy World Event Generator."""
     print("\n" + "="*80)
@@ -1399,8 +1560,22 @@ def main():
                     ai_provider=ai_provider, ai_model=ai_model, ai_base_url=ai_base_url,
                     ai_event_mode=ai_event_mode)
 
-    # Set event frequency to between 10 and 120 minutes
-    min_wait, max_wait = 600, 7200  # 10 minutes to 2 hours between events
+    # Mutable config dict — passed into wait_with_menu so menu changes take effect immediately
+    config = {
+        'ai_provider':   ai_provider,
+        'ai_model':      ai_model,
+        'ai_base_url':   ai_base_url,
+        'ai_event_mode': ai_event_mode,
+        'api_key':       api_key,
+        'min_wait':      600,   # 10 minutes
+        'max_wait':      7200,  # 2 hours
+    }
+
+    def _save_config(cfg):
+        save_last_world(world_name, cfg['api_key'], telegram_token,
+                        generator.telegram.get_chat_id(),
+                        ai_provider=cfg['ai_provider'], ai_model=cfg['ai_model'],
+                        ai_base_url=cfg['ai_base_url'], ai_event_mode=cfg['ai_event_mode'])
 
     # Print world information
     print(f"\nWorld '{world_name}' created successfully!")
@@ -1511,12 +1686,9 @@ def main():
             print(f"\n{blue}World Time:{reset} Year {generator.world_state['time']['year']}, {generator.world_state['time']['season'].capitalize()}, {generator.world_state['time']['time_of_day'].capitalize()}")
             print(f"{blue}Weather:{reset} {generator.world_state['time']['weather'].capitalize()}")
 
-            # Calculate wait time (but don't display it)
-            wait_time = random.randint(min_wait, max_wait)
-            print("\nWaiting for next event... (Press Ctrl+C to exit)")
-
-            # Wait until next event
-            time.sleep(wait_time)
+            # Wait until next event (interactive menu available during wait)
+            wait_time = random.randint(config['min_wait'], config['max_wait'])
+            wait_with_menu(generator, wait_time, config, _save_config)
 
     except KeyboardInterrupt:
         print("\n\nExiting Fantasy World Event Generator.")
