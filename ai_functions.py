@@ -1,11 +1,22 @@
 import json
+import logging
 import os
 import random
 import re
 import time
 import traceback
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, Any, List, Tuple
+
+# Rotating log file — 1 MB per file, keep 3 backups
+_log_path = Path(__file__).parent / "ai_errors.log"
+_ai_logger = logging.getLogger("ai_functions")
+_ai_logger.setLevel(logging.DEBUG)
+if not _ai_logger.handlers:
+    _fh = RotatingFileHandler(_log_path, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    _ai_logger.addHandler(_fh)
 from PIL import Image, ImageDraw, ImageFont
 import mimetypes
 import base64
@@ -36,7 +47,7 @@ AI_PROVIDERS = {
         "description": "Google's Gemini AI (supports text + image generation)",
         "requires": "google-genai",
         "available": GEMINI_SUPPORT,
-        "default_model": "gemini-2.0-flash",
+        "default_model": "gemini-3-flash-lite-preview",
     },
     "openai": {
         "name": "OpenAI",
@@ -77,7 +88,8 @@ class AIFunctions:
 
     def __init__(self, api_key: Optional[str] = None, debug: bool = False,
                  provider: str = "gemini", model: Optional[str] = None,
-                 base_url: Optional[str] = None):
+                 base_url: Optional[str] = None,
+                 image_model: str = "gemini-3.1-flash-image-preview"):
         """Initialize AI functionality with the provided API key and provider.
 
         Args:
@@ -92,6 +104,7 @@ class AIFunctions:
         self.provider = provider
         self.gemini_available = False
         self.ai_available = False
+        self.image_model = image_model
 
         # Provider-specific clients
         self.gemini_client = None
@@ -191,25 +204,39 @@ class AIFunctions:
                 return response_text
             except Exception as e:
                 err_str = str(e)
-                err_str = str(e)
                 is_rate_limit = "503" in err_str or "UNAVAILABLE" in err_str
                 is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
                 is_not_found = "404" in err_str or "NOT_FOUND" in err_str
+                prompt_snippet = prompt[:300].replace("\n", " ") + ("..." if len(prompt) > 300 else "")
                 if is_not_found:
-                    # Extract model name hint from error message
                     m = re.search(r"models/(\S+) is not found", err_str)
                     bad_model = m.group(1) if m else self.gemini_model
-                    print(f"[AI Error] Model '{bad_model}' does not exist. Use the [M] menu to set a valid model (e.g. gemini-2.0-flash).")
+                    msg = f"[AI Error] Model '{bad_model}' does not exist. Use the [M] menu to set a valid model (e.g. gemini-2.0-flash)."
+                    print(msg)
+                    _ai_logger.error("%s | model=%s | prompt=%s", msg, self.gemini_model, prompt_snippet)
                     return ""
                 # Parse the API-suggested retry delay (e.g. "Please retry in 18.7s")
                 m = re.search(r'retry in (\d+(?:\.\d+)?)s', err_str, re.IGNORECASE)
                 suggested_delay = float(m.group(1)) + 5 if m else 0
                 if (is_rate_limit or is_quota) and attempt < max_retries - 1:
-                    delay = max(base_delay * (2 ** attempt), suggested_delay)
-                    print(f"[AI] Gemini quota/rate error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.0f}s")
-                    time.sleep(delay)
+                    delay = int(max(base_delay * (2 ** attempt), suggested_delay))
+                    msg = f"[AI] Gemini quota/rate error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s"
+                    print(msg)
+                    _ai_logger.warning("%s | model=%s | error=%s | prompt=%s",
+                                       msg, self.gemini_model, err_str, prompt_snippet)
+                    for remaining in range(delay, 0, -1):
+                        print(f"\r[AI] Retrying in {remaining}s... (Ctrl+C to skip)  ", end="", flush=True)
+                        try:
+                            time.sleep(1)
+                        except KeyboardInterrupt:
+                            print("\r[AI] Retry wait cancelled, skipping AI call.         ")
+                            return ""
+                    print("\r[AI] Retrying now...                                  ")
                 else:
-                    print(f"[AI Error] Gemini text generation failed: {e}")
+                    msg = f"[AI Error] Gemini text generation failed: {e}"
+                    print(msg)
+                    _ai_logger.error("%s | model=%s | prompt=%s", msg, self.gemini_model, prompt_snippet,
+                                     exc_info=True)
                     traceback.print_exc()
                     return ""
 
@@ -226,7 +253,9 @@ class AIFunctions:
             response = self.openai_client.chat.completions.create(**kwargs)
             return response.choices[0].message.content or ""
         except Exception as e:
-            print(f"[AI Error] OpenAI text generation failed: {e}")
+            msg = f"[AI Error] OpenAI text generation failed: {e}"
+            print(msg)
+            _ai_logger.error(msg, exc_info=True)
             traceback.print_exc()
             return ""
 
@@ -313,7 +342,9 @@ class AIFunctions:
                         "formatted_message": telegram_msg
                     }
             except Exception as e:
-                print(f"[AI Error] summarize_event_for_telegram: {e}")
+                msg = f"[AI Error] summarize_event_for_telegram: {e}"
+                print(msg)
+                _ai_logger.error(msg, exc_info=True)
                 traceback.print_exc()
 
         # Fallback if AI fails or isn't available
@@ -370,7 +401,9 @@ class AIFunctions:
             return self.parse_json_response(response_text)
 
         except Exception as e:
-            print(f"[AI Error] get_ai_enhanced_event_details: {e}")
+            msg = f"[AI Error] get_ai_enhanced_event_details: {e}"
+            print(msg)
+            _ai_logger.error(msg, exc_info=True)
             traceback.print_exc()
             return {}
 
@@ -387,8 +420,8 @@ class AIFunctions:
                 self.debug_print(f"API key: {self.api_key[:4]}...{self.api_key[-4:] if len(self.api_key) > 8 else ''}")
 
             try:
-                self.debug_print("Attempting to use gemini-2.0-flash-exp-image-generation model")
-                model = "gemini-2.0-flash-exp-image-generation"
+                self.debug_print(f"Attempting to use {self.image_model} model")
+                model = self.image_model
 
                 # Enhanced prompt for better image quality
                 enhanced_prompt = f"""
@@ -454,17 +487,23 @@ class AIFunctions:
                         return None
 
                 except Exception as e:
-                    print(f"[AI Error] image streaming: {e}")
+                    msg = f"[AI Error] image streaming: {e}"
+                    print(msg)
+                    _ai_logger.error(msg, exc_info=True)
                     traceback.print_exc()
                     return None
 
             except Exception as e:
-                print(f"[AI Error] image generation model: {e}")
+                msg = f"[AI Error] image generation model: {e}"
+                print(msg)
+                _ai_logger.error(msg, exc_info=True)
                 traceback.print_exc()
                 return None
 
         except Exception as e:
-            print(f"[AI Error] generate_event_image: {e}")
+            msg = f"[AI Error] generate_event_image: {e}"
+            print(msg)
+            _ai_logger.error(msg, exc_info=True)
             traceback.print_exc()
             return None
 
@@ -574,7 +613,9 @@ Respond in JSON format:
                 return None
 
         except Exception as e:
-            print(f"[AI Error] generate_full_ai_event: {e}")
+            msg = f"[AI Error] generate_full_ai_event: {e}"
+            print(msg)
+            _ai_logger.error(msg, exc_info=True)
             traceback.print_exc()
             return None
 
