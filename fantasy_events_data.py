@@ -829,3 +829,393 @@ fill_ins = {
         "void salts", "refined moonstone", "fire salts", "frost salts", "dragon scales", "dragon bones"
     ]
 }
+
+# ============================================================================
+# WORLD STATE TEMPLATES - Used by apply_random_world_changes and world init
+# ============================================================================
+
+# Weather options by season (used during world creation and season changes)
+weather_by_season = {
+    'spring': [
+        'clear', 'rainy', 'cloudy', 'foggy', 'windy',
+        'drizzling', 'overcast', 'mild', 'breezy', 'misty',
+        'warm showers', 'partly cloudy', 'gentle winds', 'dew-laden',
+        'pollen-thick', 'rainbow-streaked', 'fresh', 'humid'
+    ],
+    'summer': [
+        'clear', 'sunny', 'hot', 'thunderstorm', 'dry',
+        'scorching', 'humid', 'hazy', 'sweltering', 'balmy',
+        'heat shimmer', 'tropical storm', 'warm breeze', 'cloudless',
+        'oppressively hot', 'arid', 'muggy', 'still air'
+    ],
+    'autumn': [
+        'clear', 'rainy', 'windy', 'foggy', 'cloudy',
+        'crisp', 'overcast', 'blustery', 'chilly', 'misty',
+        'harvest winds', 'grey skies', 'cool breeze', 'drizzling',
+        'leaf-strewn winds', 'damp', 'frost-touched', 'brisk'
+    ],
+    'winter': [
+        'clear', 'snowy', 'blizzard', 'foggy', 'freezing',
+        'icy', 'sleet', 'bitter cold', 'frost', 'overcast',
+        'hail', 'whiteout', 'permafrost', 'wind chill',
+        'ice storm', 'biting wind', 'grey and cold', 'frigid'
+    ]
+}
+
+# Extreme weather events (used in apply_random_world_changes)
+extreme_weather_events = [
+    'hurricane', 'blizzard', 'drought', 'floods',
+    'magical storm', 'volcanic eruption', 'earthquake',
+    'meteor shower', 'tsunami', 'wildfires',
+    'extreme heatwave', 'polar vortex', 'superstorm',
+    'lightning storm', 'freak hailstorm', 'tornado',
+    'solar flare', 'aurora borealis', 'unusual auroras',
+    'unseasonal snow', 'unexpected frost',
+    'heavy fog', 'thunderstorm', 'windstorm',
+    'dust storm', 'sandstorm', 'acid rain',
+    'mysterious fog', 'magical blizzard', 'enchanted rain',
+    'time storm', 'dimension storm',
+    'blood rain', 'fire rain', 'arcane lightning',
+    'planar wind', 'void storm', 'spirit fog',
+    'crystal hail', 'shadow eclipse', 'cursed precipitation',
+    'elemental vortex', 'mana surge storm', 'temporal haze',
+    'gravity anomaly', 'living storm', 'singing winds'
+]
+
+# Natural disaster events
+natural_disaster_events = [
+    'earthquake', 'volcanic eruption', 'tsunami',
+    'landslide', 'flood', 'wildfire',
+    'hurricane', 'tornado', 'blizzard',
+    'drought', 'storm', 'sinkhole',
+    'meteor impact', 'pestilence', 'plague',
+    'locust swarm', 'famine',
+    'tidal surge', 'avalanche', 'mudslide',
+    'dust bowl', 'glacial advance', 'underground collapse',
+    'magical contamination', 'leyline rupture', 'river diversion',
+    'forest die-off', 'coral bleaching', 'deforestation',
+    'mine collapse', 'gas eruption', 'geothermal venting',
+    'insect infestation', 'crop blight', 'water poisoning'
+]
+
+# Mystery/unexplained events
+mystery_events = [
+    'ancient artifact discovery', 'lost city found',
+    'mysterious disappearance', 'unexplained phenomenon',
+    'forgotten prophecy', 'ancient curse lifted',
+    'legendary creature sighting', 'time anomaly',
+    'dimensional rift', 'magical phenomenon',
+    'forgotten magic rediscovered', 'ancient evil resurgence',
+    'mass shared dream', 'crop circles of unknown origin',
+    'phantom ship sighting', 'ghostly army march',
+    'speaking stones discovered', 'impossible architecture found',
+    'memory plague', 'vanishing village',
+    'underground city rumored', 'unexplained music heard at night',
+    'stars rearranging themselves', 'a dead language spoken by children',
+    'mirror reflections acting independently', 'shadows moving against the light',
+    'objects aging overnight', 'animals behaving in unison',
+    'sky turning an unnatural color', 'a silent zone spreading'
+]
+
+# Mundane/everyday events
+mundane_events = [
+    'trade caravan arrives', 'festival celebrated',
+    'new settlement founded', 'road repaired',
+    'market day held', 'new inn opened',
+    'farming season begins', 'harvest festival',
+    'cultural exchange', 'diplomatic mission',
+    'trade agreement signed', 'new law enacted',
+    'bridge constructed', 'lighthouse lit', 'canal dug',
+    'new guild established', 'census conducted',
+    'library founded', 'school opened', 'hospital built',
+    'tax collection', 'census announced', 'well dug',
+    'orchard planted', 'brewery opened', 'bakery competition',
+    'fishing tournament', 'horse race', 'archery contest',
+    'storytelling festival', 'artisan fair', 'cattle drive',
+    'merchant guild meeting', 'town crier announcement',
+    'new trade route established', 'harbor expansion',
+    'watchtower constructed', 'granary filled'
+]
+
+# Conflict/combat events
+conflict_events = [
+    'battle', 'skirmish', 'war', 'rebellion',
+    'assassination', 'duel', 'invasion',
+    'defense', 'betrayal', 'surrender',
+    'siege', 'ambush', 'raid', 'mutiny',
+    'border clash', 'naval engagement', 'guerrilla attack',
+    'ceasefire violation', 'hostage crisis', 'prison break',
+    'gladiatorial contest', 'mercenary uprising', 'coup attempt',
+    'espionage uncovered', 'sabotage', 'blockade',
+    'scorched earth retreat', 'flanking maneuver',
+    'diplomatic assassination', 'honor duel',
+    'dragon attack', 'monster siege', 'undead rising'
+]
+
+# Political events for world changes
+political_events = [
+    'alliance', 'betrayal', 'war', 'peace treaty',
+    'coup', 'assassination', 'revolution',
+    'trade agreement', 'territorial dispute',
+    'diplomatic mission', 'political scandal',
+    'election', 'vote of confidence', 'referendum',
+    'summit meeting', 'espionage', 'propaganda campaign',
+    'peace talks', 'ceasefire agreement',
+    'royal decree', 'exile of a noble house', 'coronation',
+    'abdication', 'regency established', 'martial law declared',
+    'diplomatic immunity revoked', 'embassy established',
+    'sanctions imposed', 'tribute demanded', 'hostage exchange',
+    'public execution', 'amnesty granted', 'noble marriage arranged',
+    'territory annexed', 'independence declared',
+    'puppet government installed', 'council reformation',
+    'tax revolt', 'succession crisis', 'political purge'
+]
+
+# Social events
+social_events = [
+    'festival', 'celebration', 'protest', 'disaster',
+    'cultural exchange', 'migration', 'epidemic',
+    'discovery', 'invention', 'artistic movement',
+    'scientific breakthrough', 'religious event',
+    'social reform', 'cultural renaissance',
+    'technological advancement', 'philosophical debate',
+    'social unrest', 'community gathering',
+    'mass pilgrimage', 'sporting tournament', 'grand ball',
+    'public trial', 'charity drive', 'refugee crisis',
+    'new religion founded', 'heresy proclaimed',
+    'bard competition', 'theater premiere', 'fashion trend',
+    'folk hero emergence', 'social class uprising',
+    'education reform', 'healthcare initiative',
+    'urban expansion', 'rural exodus', 'birth of a prodigy',
+    'legendary performance', 'mass wedding', 'funeral of a hero'
+]
+
+# Economic events
+economic_events = [
+    'market crash', 'economic boom', 'trade war',
+    'resource discovery', 'currency devaluation',
+    'inflation', 'deflation', 'financial scandal',
+    'investment surge', 'economic collapse',
+    'trade agreement', 'economic reform',
+    'technological disruption', 'economic migration',
+    'financial crisis', 'debt crisis',
+    'monopoly established', 'guild price-fixing exposed',
+    'new mine opened', 'trade route severed',
+    'merchant fleet lost', 'smuggling ring busted',
+    'counterfeit currency discovered', 'foreign investment boom',
+    'resource embargo', 'harvest surplus', 'harvest failure',
+    'banking house founded', 'loan shark crackdown',
+    'luxury tax imposed', 'free trade zone established',
+    'piracy surge', 'insurance guild formed',
+    'commodity shortage', 'black market expansion'
+]
+
+# Magical occurrence events
+magical_occurrence_events = [
+    'arcane surge', 'magic depletion', 'dimensional rift',
+    'magical creature emergence', 'prophecy manifestation',
+    'ancient artifact discovery', 'curse lifting',
+    'blessing from the gods', 'magical phenomenon',
+    'spiritual awakening', 'enchanted forest growth',
+    'mysterious portal appearance', 'time loop',
+    'legendary hero awakening', 'ancient evil resurgence',
+    'forgotten magic rediscovery', 'new magical field emergence',
+    'magical creature migration', 'new ley line discovery',
+    'unexpected magical surge',
+    'wild magic zone expansion', 'mana well eruption',
+    'spell plague outbreak', 'familiar bond epidemic',
+    'golem uprising', 'sentient spell manifestation',
+    'anti-magic field expansion', 'elemental convergence',
+    'divine spark detected', 'necromantic resonance',
+    'illusion matrix collapse', 'transmutation accident',
+    'conjuration mishap cascade', 'divination blackout',
+    'abjuration ward failure', 'evocation chain reaction',
+    'chronomancy side effect', 'shadow magic leak'
+]
+
+# Character development events
+character_developments = [
+    'gained magical powers', 'lost an important item', 'discovered a secret',
+    'changed allegiance', 'was transformed', 'acquired legendary status',
+    'became a leader', 'fell in love', 'betrayed a friend',
+    'made a powerful enemy', 'found a hidden treasure',
+    'unlocked a hidden potential', 'suffered a tragic loss',
+    'became a mentor', 'gained a powerful artifact',
+    'was cursed', 'found a lost city', 'became a legend',
+    'went missing under mysterious circumstances',
+    'was revealed to be an imposter', 'founded a new order',
+    'challenged a rival to a duel', 'retired from adventuring',
+    'returned from the dead', 'made a dark pact',
+    'broke a sacred oath', 'received a divine vision',
+    'lost their memory', 'was granted a title of nobility',
+    'discovered their true parentage', 'contracted a rare disease',
+    'survived an assassination attempt', 'was exiled from their homeland',
+    'wrote a famous book', 'forged a legendary weapon',
+    'tamed a wild beast', 'learned a forbidden spell',
+    'solved an ancient riddle', 'started a rebellion'
+]
+
+# Realm shift events
+realm_shift_events = [
+    'time warp', 'seasonal anomaly', 'planar convergence',
+    'divine intervention', 'cosmological shift',
+    'realm merging', 'dimensional rift',
+    'time dilation', 'alternate reality emergence',
+    'gravity reversal', 'reality fracture', 'dream bleed-through',
+    'astral alignment', 'ethereal thinning', 'feywild overlap',
+    'shadowfell encroachment', 'elemental plane breach',
+    'far realm intrusion', 'celestial conjunction',
+    'void expansion', 'world tree tremor', 'fate reweaving',
+    'divine departure', 'new constellation appearance'
+]
+
+# World change type weights (used to pick random change types)
+world_change_types = [
+    'weather_event', 'faction_shift', 'magical_occurrence',
+    'character_development', 'realm_shift', 'political_event',
+    'social_event', 'economic_event', 'natural_event',
+    'conflict_event', 'mystery_event', 'mundane_event'
+]
+
+# Location notable feature templates (used during world creation)
+location_feature_templates = [
+    "home to a famous {profession}",
+    "known for its {location_quality}",
+    "recently experienced a {recent_event}",
+    "rumored to have a {rumor}",
+    "guarded by a legendary {guardian}",
+    "built upon {ancient_foundation}",
+    "famous for its {local_specialty}",
+    "haunted by {haunting}"
+]
+
+# Feature fill-in options
+location_feature_fill_ins = {
+    "profession": [
+        'blacksmith', 'alchemist', 'tavern', 'library', 'temple',
+        'enchanter', 'herbalist', 'cartographer', 'beastmaster', 'healer',
+        'swordsmith', 'jeweler', 'brewmaster', 'apothecary', 'artificer',
+        'scribe', 'fortune teller', 'weapon master', 'armorsmith', 'ranger',
+        'bard college', 'thieves guild', 'mages tower', 'druid grove'
+    ],
+    "location_quality": [
+        'beautiful architecture', 'magical properties', 'strategic importance',
+        'natural resources', 'unique customs', 'ancient history',
+        'breathtaking views', 'rare flora', 'hot springs', 'crystal caves',
+        'floating gardens', 'singing stones', 'eternal flame',
+        'underwater ruins', 'living walls', 'time-touched ruins',
+        'underground rivers', 'bioluminescent forests'
+    ],
+    "recent_event": [
+        'festival', 'natural disaster', 'change in leadership',
+        'magical phenomenon', 'economic boom', 'plague outbreak',
+        'monster attack', 'divine visitation', 'archeological discovery',
+        'immigration wave', 'construction boom', 'political upheaval',
+        'bandit raid', 'mysterious fire', 'crop miracle'
+    ],
+    "rumor": [
+        'hidden treasure', 'secret cult', 'magical portal',
+        'ancient curse', 'legendary creature', 'buried vault',
+        'ghost army', 'forbidden library', 'sleeping dragon',
+        'wishing well', 'doorway to another realm', 'lost artifact',
+        'imprisoned demon', 'oracle chamber', 'fountain of youth'
+    ],
+    "guardian": [
+        'dragon', 'golem', 'phoenix', 'treant', 'sphinx',
+        'ancient warrior spirit', 'bound elemental', 'celestial being',
+        'enchanted suit of armor', 'pack of dire wolves'
+    ],
+    "ancient_foundation": [
+        'ancient dwarven ruins', 'a collapsed dragon lair', 'an elven nexus',
+        'a forgotten battlefield', 'a sealed demon prison', 'a petrified forest',
+        'the bones of a titan', 'a network of catacombs', 'a volcanic chamber'
+    ],
+    "local_specialty": [
+        'enchanted wines', 'singing crystals', 'fireproof cloth',
+        'luminous mushrooms', 'sky-iron weapons', 'dreamweed tea',
+        'honey mead', 'dragon-scale armor', 'elven silk'
+    ],
+    "haunting": [
+        'the ghost of a betrayed king', 'spectral wolves',
+        'a weeping phantom', 'echoes of an ancient battle',
+        'a poltergeist prankster', 'shadowy figures at dusk',
+        'disembodied whispers', 'flickering ghostlights'
+    ]
+}
+
+# World description building blocks (used during world creation)
+world_description_adjectives = [
+    'mystical', 'dangerous', 'ancient', 'evolving', 'divided', 'peaceful',
+    'war-torn', 'enchanted', 'cursed', 'prosperous', 'dying', 'reborn',
+    'savage', 'enlightened', 'forgotten', 'legendary', 'chaotic', 'harmonious',
+    'shadowed', 'radiant', 'untamed', 'civilized', 'fractured', 'unified'
+]
+
+world_description_themes = [
+    'magic flows freely', 'various factions vie for power',
+    'ancient secrets await discovery', 'heroes forge their legends',
+    'the balance of power is shifting', 'the gods have gone silent',
+    'prophecy guides the fate of nations', 'technology and magic intertwine',
+    'nature reclaims the works of mortals', 'the dead do not rest easy',
+    'great beasts roam the wilderness', 'a golden age is dawning',
+    'darkness gathers at the borders', 'old alliances are crumbling',
+    'trade routes connect distant peoples', 'scholars seek forbidden knowledge'
+]
+
+world_description_hooks = [
+    'danger lurks in unexpected places', 'adventure awaits those who seek it',
+    'ordinary people live extraordinary lives', 'the past and future collide',
+    'nothing is quite as it seems', 'the wilds hold unspeakable horrors',
+    'kingdoms rise and fall with the seasons', 'legends are born every day',
+    'an ancient evil stirs beneath the surface', 'the stars themselves foretell change',
+    'war is always on the horizon', 'peace is fragile and precious',
+    'the boundary between worlds grows thin', 'mortals challenge the divine',
+    'hidden forces manipulate events from the shadows'
+]
+
+# Plot template components (used during world creation)
+plot_conflict_subjects = [
+    'territory', 'resources', 'ideology', 'an ancient artifact',
+    'political influence', 'a sacred relic', 'trade routes',
+    'a disputed border', 'religious doctrine', 'mining rights',
+    'a powerful spell', 'an ancient prophecy', 'succession rights',
+    'a water source', 'a magical nexus', 'historical grievances'
+]
+
+plot_location_phenomena = [
+    'curse', 'blessing', 'mystery', 'disappearance', 'transformation',
+    'haunting', 'awakening', 'corruption', 'miracle', 'convergence',
+    'siege', 'plague', 'rebirth', 'sinking', 'ascension'
+]
+
+plot_location_affected = [
+    'residents', 'wildlife', 'weather', 'magic', 'structures',
+    'crops', 'water supply', 'dreams', 'memories', 'time flow',
+    'gravity', 'shadows', 'vegetation', 'stone', 'the very fabric of reality'
+]
+
+plot_rising_forces = [
+    'a dark power', 'a new religion', 'a revolutionary movement',
+    'an unlikely hero', 'a forgotten deity', 'a lich king',
+    'a dragon cult', 'a merchant empire', 'a planar entity',
+    'a prophesied child', 'a necromancer', 'an elemental lord',
+    'a machine intelligence', 'a nature spirit', 'a void entity'
+]
+
+plot_world_changes = [
+    'ancient prophecies unfold', 'power structures shift',
+    'forgotten magic awakens', 'new alliances form',
+    'the old order is challenged', 'the barriers between worlds weaken',
+    'long-dormant forces stir', 'the natural order is disrupted',
+    'a great migration begins', 'knowledge once lost resurfaces',
+    'heroes answer the call', 'the gods take sides',
+    'ancient enemies unite against a common threat'
+]
+
+# Season emojis for Telegram notifications
+season_emojis = {
+    'spring': '🌱',
+    'summer': '☀️',
+    'autumn': '🍂',
+    'winter': '❄️'
+}

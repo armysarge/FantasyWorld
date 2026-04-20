@@ -25,7 +25,39 @@ from telegram_functions import TelegramFunctions
 colorama.init(autoreset=True)
 
 # Import event data from the separate module
-from fantasy_events_data import (event_categories, locations, factions, characters,magic_fields, resources, monsters, other_realms,inn_names, fill_ins)
+from fantasy_events_data import (
+    event_categories, locations, factions, characters,
+    magic_fields, resources, monsters, other_realms, inn_names, fill_ins,
+    # World state templates
+    weather_by_season, extreme_weather_events, natural_disaster_events,
+    mystery_events, mundane_events, conflict_events, political_events,
+    social_events, economic_events, magical_occurrence_events,
+    character_developments, realm_shift_events, world_change_types,
+    # Location and world creation templates
+    location_feature_templates, location_feature_fill_ins,
+    world_description_adjectives, world_description_themes, world_description_hooks,
+    # Plot templates
+    plot_conflict_subjects, plot_location_phenomena, plot_location_affected,
+    plot_rising_forces, plot_world_changes,
+    # Misc
+    season_emojis
+
+    event_categories, locations, factions, characters,
+    magic_fields, resources, monsters, other_realms, inn_names, fill_ins,
+    # World state templates
+    weather_by_season, extreme_weather_events, natural_disaster_events,
+    mystery_events, mundane_events, conflict_events, political_events,
+    social_events, economic_events, magical_occurrence_events,
+    character_developments, realm_shift_events, world_change_types,
+    # Location and world creation templates
+    location_feature_templates, location_feature_fill_ins,
+    world_description_adjectives, world_description_themes, world_description_hooks,
+    # Plot templates
+    plot_conflict_subjects, plot_location_phenomena, plot_location_affected,
+    plot_rising_forces, plot_world_changes,
+    # Misc
+    season_emojis
+)
 
 # Functions to save and load world settings
 def save_last_world(world_name: str, api_key: str = "", telegram_token: str = "",
@@ -186,13 +218,7 @@ class FantasyWorldEventGenerator:
         starting_time = random.choice(times_of_day)
 
         # Randomize starting weather based on season
-        weather_options = {
-            'spring': ['clear', 'rainy', 'cloudy', 'foggy', 'windy'],
-            'summer': ['clear', 'sunny', 'hot', 'thunderstorm', 'dry'],
-            'autumn': ['clear', 'rainy', 'windy', 'foggy', 'cloudy'],
-            'winter': ['clear', 'snowy', 'blizzard', 'foggy', 'freezing']
-        }
-        starting_weather = random.choice(weather_options[starting_season])
+        starting_weather = random.choice(weather_by_season[starting_season])
 
         # Create initial faction relations (some randomly friendly, neutral, or hostile)
         initial_relations = {}
@@ -239,12 +265,15 @@ class FantasyWorldEventGenerator:
             num_features = random.randint(0, 3)
             features = []
 
-            feature_options = [
-                f"home to a famous {random.choice(['blacksmith', 'alchemist', 'tavern', 'library', 'temple'])}",
-                f"known for its {random.choice(['beautiful architecture', 'magical properties', 'strategic importance', 'natural resources', 'unique customs'])}",
-                f"recently experienced a {random.choice(['festival', 'natural disaster', 'change in leadership', 'magical phenomenon', 'economic boom'])}",
-                f"rumored to have a {random.choice(['hidden treasure', 'secret cult', 'magical portal', 'ancient curse', 'legendary creature'])}"
-            ]
+            feature_options = []
+            for template in location_feature_templates:
+                # Fill in the template with random options from the fill-in data
+                filled = template
+                for key, options in location_feature_fill_ins.items():
+                    placeholder = "{" + key + "}"
+                    if placeholder in filled:
+                        filled = filled.replace(placeholder, random.choice(options))
+                feature_options.append(filled)
 
             for _ in range(num_features):
                 if feature_options:
@@ -263,9 +292,9 @@ class FantasyWorldEventGenerator:
 
         # Create a randomized world description
         description_elements = [
-            f"{self.world_name} is a {random.choice(['mystical', 'dangerous', 'ancient', 'evolving', 'divided', 'peaceful'])} realm",
-            f"where {random.choice(['magic flows freely', 'various factions vie for power', 'ancient secrets await discovery', 'heroes forge their legends', 'the balance of power is shifting'])}",
-            f"and {random.choice(['danger lurks in unexpected places', 'adventure awaits those who seek it', 'ordinary people live extraordinary lives', 'the past and future collide', 'nothing is quite as it seems'])}."
+            f"{self.world_name} is a {random.choice(world_description_adjectives)} realm",
+            f"where {random.choice(world_description_themes)}",
+            f"and {random.choice(world_description_hooks)}."
         ]
         world_description = " ".join(description_elements)
 
@@ -276,17 +305,17 @@ class FantasyWorldEventGenerator:
         plot_templates = [
             {
                 'name': f"Conflict between {random.choice(self.factions)} and {random.choice(self.factions)}",
-                'description': f"Tensions are rising as two powerful factions clash over {random.choice(['territory', 'resources', 'ideology', 'an ancient artifact', 'political influence'])}.",
+                'description': f"Tensions are rising as two powerful factions clash over {random.choice(plot_conflict_subjects)}.",
                 'status': 'active'
             },
             {
-                'name': f"The {random.choice(['curse', 'blessing', 'mystery', 'disappearance', 'transformation'])} of {random.choice(self.locations)}",
-                'description': f"Something strange is happening in this location, affecting the {random.choice(['residents', 'wildlife', 'weather', 'magic', 'structures'])}.",
+                'name': f"The {random.choice(plot_location_phenomena)} of {random.choice(self.locations)}",
+                'description': f"Something strange is happening in this location, affecting the {random.choice(plot_location_affected)}.",
                 'status': 'active'
             },
             {
-                'name': f"Rise of {random.choice(['a dark power', 'a new religion', 'a revolutionary movement', 'an unlikely hero', 'a forgotten deity'])}",
-                'description': f"Change is coming to the world as {random.choice(['ancient prophecies unfold', 'power structures shift', 'forgotten magic awakens', 'new alliances form', 'the old order is challenged'])}.",
+                'name': f"Rise of {random.choice(plot_rising_forces)}",
+                'description': f"Change is coming to the world as {random.choice(plot_world_changes)}.",
                 'status': 'active'
             }
         ]
@@ -928,13 +957,7 @@ class FantasyWorldEventGenerator:
         self.world_state['events_since_season_change'] = 0
 
         # Update weather based on new season
-        weather_options = {
-            'spring': ['clear', 'rainy', 'cloudy', 'foggy', 'windy'],
-            'summer': ['clear', 'sunny', 'hot', 'thunderstorm', 'dry'],
-            'autumn': ['clear', 'rainy', 'windy', 'foggy', 'cloudy'],
-            'winter': ['clear', 'snowy', 'blizzard', 'foggy', 'freezing']
-        }
-        self.world_state['time']['weather'] = random.choice(weather_options[next_season])
+        self.world_state['time']['weather'] = random.choice(weather_by_season[next_season])
 
         # Update year if winter ends
         if current_season == 'winter' and next_season == 'spring':
@@ -947,12 +970,6 @@ class FantasyWorldEventGenerator:
 
         # Send notification via telegram if available
         if self.telegram.get_chat_id():
-            season_emojis = {
-                'spring': '🌱',
-                'summer': '☀️',
-                'autumn': '🍂',
-                'winter': '❄️'
-            }
             emoji = season_emojis.get(next_season, '🍃')
 
             message = f"{emoji} *The season has changed to {next_season.capitalize()}!*\n\n"
@@ -966,69 +983,27 @@ class FantasyWorldEventGenerator:
         print("A significant shift occurs in the world...")
 
         # Pick a random type of change
-        change_type = random.choice([
-            'weather_event', 'faction_shift', 'magical_occurrence',
-            'character_development', 'realm_shift', 'political_event',
-            'social_event', 'economic_event', 'natural_event',
-            'conflict_event', 'mystery_event', 'mundane_event'
-        ])
+        change_type = random.choice(world_change_types)
 
         if change_type == 'weather_event':
             # Dramatic weather change
-            extreme_weather = random.choice([
-                'hurricane', 'blizzard', 'drought', 'floods',
-                'magical storm', 'volcanic eruption', 'earthquake',
-                'meteor shower', 'tsunami', 'wildfires',
-                'extreme heatwave', 'polar vortex', 'superstorm',
-                'lightning storm', 'freak hailstorm', 'tornado',
-                'solar flare', 'aurora borealis', 'unusual auroras',
-                'unseasonal snow', 'unexpected frost',
-                'heavy fog', 'thunderstorm', 'windstorm',
-                'dust storm', 'sandstorm', 'acid rain',
-                'mysterious fog', 'magical blizzard', 'enchanted rain',
-                'time storm', 'dimension storm'
-            ])
+            extreme_weather = random.choice(extreme_weather_events)
             self.world_state['time']['weather'] = extreme_weather
             print(f"The world experiences an extreme weather event: {extreme_weather}")
         elif change_type == 'natural_event':
             # Major natural disaster
-            natural_disaster = random.choice([
-                'earthquake', 'volcanic eruption', 'tsunami',
-                'landslide', 'flood', 'wildfire',
-                'hurricane', 'tornado', 'blizzard',
-                'drought', 'storm', 'sinkhole',
-                'meteor impact', 'pestilence', 'plague',
-                'locust swarm', 'famine'
-            ])
+            natural_disaster = random.choice(natural_disaster_events)
             print(f"A natural disaster occurs: {natural_disaster}")
         elif change_type == 'mystery_event':
             # Mysterious event affecting the world
-            mystery_event = random.choice([
-                'ancient artifact discovery', 'lost city found',
-                'mysterious disappearance', 'unexplained phenomenon',
-                'forgotten prophecy', 'ancient curse lifted',
-                'legendary creature sighting', 'time anomaly',
-                'dimensional rift', 'magical phenomenon',
-                'forgotten magic rediscovered', 'ancient evil resurgence'
-            ])
+            mystery_event = random.choice(mystery_events)
             print(f"A mysterious event occurs: {mystery_event}")
         elif change_type == 'mundane_event':
             # Mundane event affecting the world
-            mundane_event = random.choice([
-                'trade caravan arrives', 'festival celebrated',
-                'new settlement founded', 'road repaired',
-                'market day held', 'new inn opened',
-                'farming season begins', 'harvest festival',
-                'cultural exchange', 'diplomatic mission',
-                'trade agreement signed', 'new law enacted'
-            ])
+            mundane_event = random.choice(mundane_events)
             print(f"A mundane event occurs: {mundane_event}")
         elif change_type == 'conflict_event':
-            conflict_event = random.choice([
-                'battle', 'skirmish', 'war', 'rebellion',
-                'assassination', 'duel', 'invasion',
-                'defense', 'betrayal', 'surrender'
-            ])
+            conflict_event = random.choice(conflict_events)
             print(f"A conflict event occurs: {conflict_event}")
         elif change_type == 'faction_shift':
             # Major shift in faction dynamics
@@ -1044,15 +1019,7 @@ class FantasyWorldEventGenerator:
                 print(f"Relations between {factions[0]} and {factions[1]} have dramatically shifted to {new_status}!")
         elif change_type == 'political_event':
             # Random political event affecting factions
-            political_event = random.choice([
-                'alliance', 'betrayal', 'war', 'peace treaty',
-                'coup', 'assassination', 'revolution',
-                'trade agreement', 'territorial dispute',
-                'diplomatic mission', 'political scandal',
-                'election', 'vote of confidence', 'referendum',
-                'summit meeting', 'espionage', 'propaganda campaign',
-                'peace talks', 'ceasefire agreement'
-            ])
+            political_event = random.choice(political_events)
 
             # Store this in world state relations
             if self.world_state['relations'] and len(self.world_state['relations']) > 0:
@@ -1083,15 +1050,7 @@ class FantasyWorldEventGenerator:
             print(f"A political event occurs: {political_event}")
         elif change_type == 'social_event':
             # Random social event affecting the world
-            social_event = random.choice([
-                'festival', 'celebration', 'protest', 'disaster',
-                'cultural exchange', 'migration', 'epidemic',
-                'discovery', 'invention', 'artistic movement',
-                'scientific breakthrough', 'religious event',
-                'social reform', 'cultural renaissance',
-                'technological advancement', 'philosophical debate',
-                'social unrest', 'community gathering'
-            ])
+            social_event = random.choice(social_events)
 
             # Store this in world state custom events
             if 'social_events' not in self.world_state:
@@ -1106,15 +1065,7 @@ class FantasyWorldEventGenerator:
             print(f"A social event occurs: {social_event}")
         elif change_type == 'economic_event':
             # Random economic event affecting the world
-            economic_event = random.choice([
-                'market crash', 'economic boom', 'trade war',
-                'resource discovery', 'currency devaluation',
-                'inflation', 'deflation', 'financial scandal',
-                'investment surge', 'economic collapse',
-                'trade agreement', 'economic reform',
-                'technological disruption', 'economic migration',
-                'financial crisis', 'debt crisis'
-            ])
+            economic_event = random.choice(economic_events)
 
             # Store this in world state custom events
             if 'economic_events' not in self.world_state:
@@ -1129,18 +1080,7 @@ class FantasyWorldEventGenerator:
             print(f"An economic event occurs: {economic_event}")
         elif change_type == 'magical_occurrence':
             # Random magical event affecting the world
-            magic_event = random.choice([
-                'arcane surge', 'magic depletion', 'dimensional rift',
-                'magical creature emergence', 'prophecy manifestation',
-                'ancient artifact discovery', 'curse lifting',
-                'blessing from the gods', 'magical phenomenon',
-                'spiritual awakening', 'enchanted forest growth',
-                'mysterious portal appearance', 'time loop',
-                'legendary hero awakening', 'ancient evil resurgence',
-                'forgotten magic rediscovery', 'new magical field emergence',
-                'magical creature migration', 'new ley line discovery',
-                'unexpected magical surge'
-            ])
+            magic_event = random.choice(magical_occurrence_events)
 
             # Store this in world state custom events
             if 'magical_events' not in self.world_state:
@@ -1158,15 +1098,7 @@ class FantasyWorldEventGenerator:
             # Major character development
             if self.world_state['character_status'] and len(self.world_state['character_status']) > 0:
                 char_name = random.choice(list(self.world_state['character_status'].keys()))
-                development = random.choice([
-                    'gained magical powers', 'lost an important item', 'discovered a secret',
-                    'changed allegiance', 'was transformed', 'acquired legendary status',
-                    'became a leader', 'fell in love', 'betrayed a friend',
-                    'made a powerful enemy', 'found a hidden treasure',
-                    'unlocked a hidden potential', 'suffered a tragic loss',
-                    'became a mentor', 'gained a powerful artifact',
-                    'was cursed', 'found a lost city', 'became a legend'
-                ])
+                development = random.choice(character_developments)
 
                 # Add the development to character history
                 if 'developments' not in self.world_state['character_status'][char_name]:
@@ -1181,12 +1113,7 @@ class FantasyWorldEventGenerator:
 
         elif change_type == 'realm_shift':
             # The entire realm undergoes a shift
-            realm_change = random.choice([
-                'time warp', 'seasonal anomaly', 'planar convergence',
-                'divine intervention', 'cosmological shift',
-                'realm merging', 'dimensional rift',
-                'time dilation', 'alternate reality emergence'
-            ])
+            realm_change = random.choice(realm_shift_events)
 
             # Apply actual changes
             if realm_change == 'time warp':
